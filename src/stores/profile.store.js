@@ -1,11 +1,16 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '@/firebase/config'
 import { useAuthStore } from './auth.store'
 
 export const useProfileStore = defineStore('profile', () => {
   const saving = ref(false)
+
+  const nutritionPlan = computed(() => {
+    const auth = useAuthStore()
+    return auth.profile?.nutrition_plan ?? null
+  })
 
   async function updateProfile(data) {
     const auth = useAuthStore()
@@ -24,5 +29,20 @@ export const useProfileStore = defineStore('profile', () => {
     await updateProfile({ onboarding_completed: true })
   }
 
-  return { saving, updateProfile, completeOnboarding }
+  async function saveThemeColor(themeId) {
+    await updateProfile({ theme_color: themeId })
+    applyThemeColor(themeId)
+  }
+
+  function applyThemeColor(themeId) {
+    document.documentElement.setAttribute('data-theme', themeId)
+    localStorage.setItem('disciplina-theme', themeId)
+  }
+
+  function initTheme() {
+    const saved = localStorage.getItem('disciplina-theme')
+    if (saved) applyThemeColor(saved)
+  }
+
+  return { saving, nutritionPlan, updateProfile, completeOnboarding, saveThemeColor, initTheme }
 })

@@ -1,26 +1,33 @@
 <script setup>
 import { ref, onMounted } from 'vue'
-import AppHeader from '@/components/ui/AppHeader.vue'
-import BottomNav from '@/components/ui/BottomNav.vue'
-import { useAuthStore } from '@/stores/auth.store'
-import { useRouter } from 'vue-router'
-import { staggerIn } from '@/composables/useAnimations'
+import AppHeader           from '@/components/ui/AppHeader.vue'
+import BottomNav           from '@/components/ui/BottomNav.vue'
+import { useAuthStore }    from '@/stores/auth.store'
+import { useProfileStore } from '@/stores/profile.store'
+import { useRouter }       from 'vue-router'
+import { staggerIn }       from '@/composables/useAnimations'
 
-const auth   = useAuthStore()
-const router = useRouter()
-const rows   = ref([])
+const auth    = useAuthStore()
+const profile = useProfileStore()
+const router  = useRouter()
+const rows    = ref([])
 
 const themes = [
-  { id: 'lilac', label: 'Lila',    color: '#c4b5fd' },
-  { id: 'cyan',  label: 'Cian',    color: '#67e8f9' },
-  { id: 'amber', label: 'Ámbar',   color: '#fbbf24' },
-  { id: 'coral', label: 'Coral',   color: '#fb7185' },
-  { id: 'green', label: 'Verde',   color: '#4ade80' },
+  { id: 'lilac', label: 'Lila',  color: '#c4b5fd' },
+  { id: 'cyan',  label: 'Cian',  color: '#67e8f9' },
+  { id: 'amber', label: 'Ámbar', color: '#fbbf24' },
+  { id: 'coral', label: 'Coral', color: '#fb7185' },
+  { id: 'green', label: 'Verde', color: '#4ade80' },
 ]
 
 onMounted(() => {
   staggerIn(rows.value, { delay: 0.1, y: 14 })
+  profile.initTheme()
 })
+
+async function selectTheme(themeId) {
+  await profile.saveThemeColor(themeId)
+}
 
 async function handleLogout() {
   await auth.signOut()
@@ -56,6 +63,7 @@ async function handleLogout() {
             :class="{ active: (auth.profile?.theme_color || 'lilac') === t.id }"
             :style="{ '--dot-color': t.color }"
             :title="t.label"
+            @click="selectTheme(t.id)"
           />
         </div>
       </div>
