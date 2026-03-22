@@ -99,19 +99,38 @@ function close() {
 
 .verse-text { display: flex; flex-direction: column; gap: var(--space-1); }
 .verse-line {
-  font-size: var(--text-lg); font-weight: 400; line-height: 1.65;
-  color: var(--text); font-family: var(--font-display);
+  /* Lora: el cambio de fuente señala al cerebro que es momento de reflexión */
+  font-family: var(--font-verse);
+  font-size: var(--text-lg);
+  font-weight: 400;
+  line-height: var(--leading-loose);
+  letter-spacing: 0.01em;
+  color: var(--text);
 }
 .verse-blank { height: var(--space-3); }
 
 .verse-divider { height: 1px; background: var(--border); }
 
 .tao-fragment {
-  font-size: var(--text-base); font-style: italic;
-  color: var(--muted); line-height: 1.6;
-  border-left: 3px solid var(--accent); padding-left: var(--space-4);
+  font-family: var(--font-verse);
+  font-size: var(--text-base);
+  font-style: italic;
+  font-weight: 400;
+  color: var(--muted);
+  line-height: var(--leading-relaxed);
+  border-left: 3px solid var(--accent);
+  padding-left: var(--space-4);
 }
-.tao-source { display: block; font-size: var(--text-xs); margin-top: var(--space-2); font-style: normal; color: var(--muted); }
+.tao-source {
+  display: block;
+  font-family: var(--font-ui);       /* vuelve a sans-serif: regresa al mundo */
+  font-size: var(--text-xs);
+  font-style: normal;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  margin-top: var(--space-2);
+  color: var(--muted);
+}
 
 .verse-actions { display: flex; gap: var(--space-3); }
 .verse-actions .btn { flex: 1; }

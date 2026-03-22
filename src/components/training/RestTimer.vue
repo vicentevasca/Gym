@@ -93,9 +93,29 @@ function skip() {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
 }
 .time-num {
-  font-size: 48px; font-weight: 800; font-family: var(--font-mono);
-  color: var(--text); line-height: 1;
+  /* JetBrains Mono: tabular nums evita que el layout salte al cambiar dígitos */
+  font-family: var(--font-mono);
+  font-size: 52px;
+  font-weight: 800;
+  font-feature-settings: "tnum" 1;
+  color: var(--text);
+  line-height: 1;
+  letter-spacing: -0.02em;
 }
-.time-label { font-size: var(--text-sm); color: var(--muted); margin-top: 2px; }
-.rest-hint { color: var(--muted); font-size: var(--text-sm); letter-spacing: 0.05em; }
+.time-label {
+  font-family: var(--font-ui);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+.rest-hint {
+  font-family: var(--font-ui);
+  color: var(--muted);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  letter-spacing: var(--tracking-wide);
+}
 </style>

@@ -114,8 +114,22 @@ async function handleCheck(setIndex) {
 .exercise-card.active { border-color: var(--accent); }
 
 .ex-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: var(--space-3); }
-.ex-name { font-size: var(--text-md); font-weight: 700; }
-.ex-muscle { color: var(--accent); margin-top: 2px; }
+.ex-name {
+  font-family: var(--font-display);   /* Bricolage: activador, presencia visual */
+  font-size: var(--text-md);
+  font-weight: 700;
+  letter-spacing: var(--tracking-snug);
+  line-height: var(--leading-snug);
+}
+.ex-muscle {
+  font-family: var(--font-ui);
+  color: var(--accent);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  margin-top: 3px;
+}
 
 .ex-tip {
   display: flex; align-items: flex-start; gap: var(--space-2);
@@ -145,7 +159,12 @@ async function handleCheck(setIndex) {
 .set-input {
   height: 42px; background: var(--surface); border: 1.5px solid var(--border);
   border-radius: var(--radius-sm); text-align: center;
-  font-size: var(--text-base); font-weight: 700; color: var(--text);
+  /* JetBrains Mono: tabular nums, el usuario no puede confundir 8 con 6 */
+  font-family: var(--font-mono);
+  font-size: var(--text-base);
+  font-weight: 700;
+  font-feature-settings: "tnum" 1;
+  color: var(--text);
   transition: var(--transition);
 }
 .set-input:focus { border-color: var(--border-focus); }

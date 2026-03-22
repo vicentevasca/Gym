@@ -89,16 +89,49 @@ const fatPct     = computed(() => Math.min(Math.round((props.consumed.fat     / 
   position: absolute; inset: 0;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
 }
-.ring-val { font-size: 22px; font-weight: 800; font-family: var(--font-mono); color: var(--text); line-height: 1; }
-.ring-lbl { font-size: var(--text-xs); color: var(--accent); font-weight: 700; letter-spacing: 0.05em; }
-.ring-sub { font-size: 10px; color: var(--muted); }
+.ring-val {
+  /* JetBrains Mono: el número de kcal es el KPI más crítico de la vista */
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 800;
+  font-feature-settings: "tnum" 1;
+  color: var(--text);
+  line-height: 1;
+}
+.ring-lbl {
+  font-family: var(--font-ui);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+.ring-sub {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+  font-feature-settings: "tnum" 1;
+}
 
 .macro-bars { flex: 1; display: flex; flex-direction: column; gap: var(--space-3); }
 .macro-item {}
 .macro-row  { display: flex; justify-content: space-between; margin-bottom: var(--space-1); }
-.macro-name { font-size: var(--text-xs); font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; }
-.macro-nums { font-size: var(--text-sm); font-weight: 700; font-family: var(--font-mono); color: var(--text); }
-.macro-max  { color: var(--muted); font-weight: 400; }
+.macro-name {
+  font-family: var(--font-ui);
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+}
+.macro-nums {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  font-feature-settings: "tnum" 1;
+  color: var(--text);
+}
+.macro-max { color: var(--muted); font-weight: 400; }
 
 .bar-track { height: 6px; background: var(--faint); border-radius: 3px; overflow: hidden; }
 .bar-fill  { height: 100%; border-radius: 3px; transition: width 0.5s ease; }

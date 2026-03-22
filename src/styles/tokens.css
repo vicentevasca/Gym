@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500&family=Syne:wght@400;500;600;700;800&family=DM+Mono:wght@300;400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,opsz,wght@0,6..18,300;0,6..18,400;0,6..18,500;0,6..18,600;0,6..18,700;0,6..18,800;1,6..18,400&family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400;12..96,75..100,700;12..96,75..100,800&family=JetBrains+Mono:wght@400;500;700;800&family=Lora:ital,wght@0,400;0,600;1,400;1,600&display=swap&display=swap');
 
 /* ═══════════════════════════════════════════════
    DISCIPLINA — Design System v2
@@ -39,21 +39,57 @@
   --faint:       #2a2a40;
   --faint-2:     #1e1e30;
 
-  /* Tipografía */
-  --font-display: 'Cormorant Garamond', Georgia, serif;
-  --font-ui:      'Syne', system-ui, sans-serif;
-  --font-mono:    'DM Mono', 'Courier New', monospace;
+  /* ── Tipografía ──
+     Plus Jakarta Sans → UI principal (labels, body, botones, tarjetas)
+     Bricolage Grotesque → Display / impacto (nombre app, saludo, headers grandes)
+     JetBrains Mono → Datos numéricos (timer, pesos, reps, macros, puntos)
+     Lora → Verso / reflexión (texto del día, citas Tao)
+  */
+  --font-ui:      'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-display: 'Bricolage Grotesque', 'Plus Jakarta Sans', sans-serif;
+  --font-mono:    'JetBrains Mono', 'Fira Code', monospace;
+  --font-verse:   'Lora', Georgia, serif;
 
-  /* Escala tipográfica */
-  --text-xs:   11px;
-  --text-sm:   13px;
-  --text-base: 15px;
-  --text-md:   17px;
-  --text-lg:   20px;
-  --text-xl:   24px;
-  --text-2xl:  30px;
-  --text-3xl:  38px;
-  --text-4xl:  48px;
+  /* Feature settings globales */
+  --font-feature-ui:    "kern" 1, "liga" 1, "calt" 1;
+  --font-feature-mono:  "kern" 0, "liga" 0, "tnum" 1;   /* tabular nums crítico para timers */
+  --font-feature-verse: "kern" 1, "liga" 1, "onum" 1;   /* oldstyle figures en la cita */
+
+  /* ── Escala tipográfica ──
+     Base: 15px — óptimo para móvil oscuro (>13px para accesibilidad WCAG)
+     Ratio: ~1.25 Major Third — armonioso sin ser demasiado dramático
+  */
+  --text-2xs:  10px;   /* micro caps, badges de estado             */
+  --text-xs:   11px;   /* labels CAPS, metadata secundaria         */
+  --text-sm:   13px;   /* texto de apoyo, timestamps, hints        */
+  --text-base: 15px;   /* body, descripciones, tips de ejercicio   */
+  --text-md:   17px;   /* nombres de ejercicio, títulos de tarjeta */
+  --text-lg:   20px;   /* headers de sección, subtítulos           */
+  --text-xl:   24px;   /* título de vista, nombre de sesión        */
+  --text-2xl:  30px;   /* saludo ("Buenos días"), display cards    */
+  --text-3xl:  38px;   /* números de macro en pantalla llena       */
+  --text-4xl:  52px;   /* timer de descanso, PR display            */
+  --text-5xl:  68px;   /* pantalla de bienvenida / wordmark        */
+
+  /* ── Alturas de línea ──
+     Cada rol tiene su propio ritmo vertical
+  */
+  --leading-tight:   1.15;   /* headings, display — sin espacio desperdiciado  */
+  --leading-snug:    1.30;   /* títulos de tarjeta — respira un poco            */
+  --leading-normal:  1.50;   /* UI body — estándar legible                      */
+  --leading-relaxed: 1.65;   /* descripciones, tips — cómodo en lectura media   */
+  --leading-loose:   1.80;   /* verso, texto literario — contemplativo          */
+
+  /* ── Tracking (letter-spacing) ──
+     Principio: cuanto mayor el tamaño → más tracking negativo
+                cuanto menor el tamaño y más caps → más tracking positivo
+  */
+  --tracking-tight:   -0.03em;  /* display grande (Bricolage 2xl+) — premium    */
+  --tracking-snug:    -0.01em;  /* títulos medianos                              */
+  --tracking-normal:   0em;     /* body normal                                   */
+  --tracking-wide:     0.04em;  /* texto secundario sm/xs                        */
+  --tracking-caps:     0.10em;  /* label-caps — legibilidad en mayúsculas        */
+  --tracking-caps-lg:  0.15em;  /* label-caps grande / wordmark                  */
 
   /* Espaciado */
   --space-1:  4px;
