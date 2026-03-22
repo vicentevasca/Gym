@@ -1,22 +1,25 @@
 <script setup>
 import { onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth.store'
-import { useRouter } from 'vue-router'
+import { useTheme } from '@/composables/useTheme'
 
-const auth   = useAuthStore()
-const router = useRouter()
+const auth  = useAuthStore()
+const { mode } = useTheme()
 
-// Inicializar auth una sola vez — el router guard ya maneja las redirecciones
 onMounted(async () => {
   await auth.init()
 })
 </script>
 
 <template>
-  <div :data-theme="auth.profile?.theme_color || 'lilac'" class="app-container">
+  <div
+    class="app-container"
+    :data-theme="auth.profile?.theme_color || 'lilac'"
+    :data-mode="mode"
+  >
     <RouterView v-slot="{ Component }">
-      <Transition name="fade" mode="out-in">
-        <component :is="Component" />
+      <Transition name="page" mode="out-in">
+        <component :is="Component" :key="$route.path" />
       </Transition>
     </RouterView>
   </div>

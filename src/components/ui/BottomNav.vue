@@ -1,49 +1,63 @@
 <script setup>
 import { useRoute } from 'vue-router'
+import { navItemTap } from '@/composables/useAnimations'
+import { ref } from 'vue'
 
 const route = useRoute()
+const iconRefs = ref([])
 
 const nav = [
-  { to: '/',          label: 'Home',    icon: 'home'     },
-  { to: '/training',  label: 'Gym',     icon: 'gym'      },
-  { to: '/nutrition', label: 'Comida',  icon: 'food'     },
-  { to: '/progress',  label: 'Progreso',icon: 'progress' },
+  {
+    to: '/',
+    label: 'Inicio',
+    icon: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9L12 2l9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
+    iconFilled: `<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>`,
+  },
+  {
+    to: '/training',
+    label: 'Gym',
+    icon: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6.5 6.5h11M6.5 17.5h11M4 12h16M2 9.5h2M20 9.5h2M2 14.5h2M20 14.5h2"/></svg>`,
+    iconFilled: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6.5 6.5h11M6.5 17.5h11M4 12h16M2 9.5h2M20 9.5h2M2 14.5h2M20 14.5h2"/></svg>`,
+  },
+  {
+    to: '/nutrition',
+    label: 'Comida',
+    icon: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>`,
+    iconFilled: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>`,
+  },
+  {
+    to: '/progress',
+    label: 'Progreso',
+    icon: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>`,
+    iconFilled: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>`,
+  },
 ]
 
-const isActive = (path) => {
-  if (path === '/') return route.path === '/'
-  return route.path.startsWith(path)
+const isActive = (path) => path === '/' ? route.path === '/' : route.path.startsWith(path)
+
+function handleTap(index) {
+  if (iconRefs.value[index]) {
+    navItemTap(iconRefs.value[index])
+  }
 }
 </script>
 
 <template>
   <nav class="bottom-nav">
     <RouterLink
-      v-for="item in nav"
+      v-for="(item, i) in nav"
       :key="item.to"
       :to="item.to"
       class="nav-item"
       :class="{ active: isActive(item.to) }"
+      @click="handleTap(i)"
     >
-      <!-- Home -->
-      <svg v-if="item.icon === 'home'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M3 9L12 2l9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
-        <polyline points="9 22 9 12 15 12 15 22"/>
-      </svg>
-      <!-- Gym -->
-      <svg v-if="item.icon === 'gym'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M6.5 6.5h11M6.5 17.5h11M4 12h16M2 9.5h2M20 9.5h2M2 14.5h2M20 14.5h2"/>
-      </svg>
-      <!-- Food -->
-      <svg v-if="item.icon === 'food'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12 2a7 7 0 017 7c0 4-3 7-7 9-4-2-7-5-7-9a7 7 0 017-7z"/>
-        <path d="M12 12v7M9 15h6"/>
-      </svg>
-      <!-- Progress -->
-      <svg v-if="item.icon === 'progress'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-      </svg>
+      <div :ref="el => iconRefs[i] = el" class="nav-icon-wrap">
+        <span v-if="isActive(item.to)" v-html="item.iconFilled" />
+        <span v-else v-html="item.icon" />
+      </div>
       <span class="nav-label">{{ item.label }}</span>
+      <div v-if="isActive(item.to)" class="nav-dot" />
     </RouterLink>
   </nav>
 </template>
@@ -59,9 +73,13 @@ const isActive = (path) => {
   border-top: 1px solid var(--border);
   display: flex;
   align-items: flex-start;
-  padding-top: 6px;
+  padding-top: var(--space-2);
   padding-bottom: var(--safe-bottom);
+  padding-left: var(--safe-left);
+  padding-right: var(--safe-right);
   z-index: 100;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
 
 .nav-item {
@@ -69,19 +87,34 @@ const isActive = (path) => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
-  padding: 4px 0;
+  gap: 2px;
+  padding: var(--space-1) 0;
   color: var(--muted);
   text-decoration: none;
-  transition: color 0.2s;
   min-height: 44px;
+  position: relative;
+  transition: color 0.2s;
 }
-
 .nav-item.active { color: var(--accent); }
+
+.nav-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px; height: 28px;
+}
 
 .nav-label {
   font-size: 10px;
+  font-weight: 600;
   letter-spacing: 0.04em;
-  text-transform: uppercase;
+}
+
+.nav-dot {
+  position: absolute;
+  bottom: 0;
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  background: var(--accent);
 }
 </style>

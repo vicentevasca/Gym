@@ -2,28 +2,39 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.store'
-import { gsap } from 'gsap'
+import { useTheme } from '@/composables/useTheme'
+import { logoReveal, staggerIn, shakeError, fadeIn } from '@/composables/useAnimations'
+import ThemeToggle from '@/components/ui/ThemeToggle.vue'
 
-const router  = useRouter()
-const auth    = useAuthStore()
+const router = useRouter()
+const auth   = useAuthStore()
+useTheme()
 
-const form    = reactive({ email: '', password: '' })
-const loading = ref(false)
-const container = ref(null)
+const form     = reactive({ email: '', password: '' })
+const loading  = ref(false)
+const showPass = ref(false)
+
+const logoEl   = ref(null)
+const formEl   = ref(null)
+const fieldsEl = ref([])
 
 onMounted(() => {
   auth.clearError()
-  gsap.from(container.value, { opacity: 0, y: 24, duration: 0.5, ease: 'power2.out' })
+  logoReveal(logoEl.value, 0)
+  staggerIn(fieldsEl.value, { delay: 0.2, y: 16 })
 })
 
 async function handleLogin() {
-  if (!form.email || !form.password) return
+  if (!form.email || !form.password) {
+    shakeError(formEl.value)
+    return
+  }
   loading.value = true
   try {
     await auth.tryAction(() => auth.login(form.email, form.password))
     router.push(auth.onboardingCompleted ? '/' : '/onboarding')
   } catch {
-    // error ya en auth.error
+    shakeError(formEl.value)
   } finally {
     loading.value = false
   }
@@ -35,7 +46,7 @@ async function handleGoogle() {
     await auth.tryAction(() => auth.loginGoogle())
     router.push(auth.onboardingCompleted ? '/' : '/onboarding')
   } catch {
-    // error ya en auth.error
+    // error en auth.error
   } finally {
     loading.value = false
   }
@@ -44,52 +55,100 @@ async function handleGoogle() {
 
 <template>
   <div class="auth-page">
-    <div ref="container" class="auth-inner">
 
-      <div class="auth-logo">
-        <h1 class="font-display">DISCIPLINA</h1>
-        <p class="auth-tagline">Entrena el cuerpo. El resto llega solo.</p>
+    <!-- Fondo decorativo -->
+    <div class="auth-bg" aria-hidden="true">
+      <div class="auth-blob auth-blob-1" />
+      <div class="auth-blob auth-blob-2" />
+    </div>
+
+    <!-- Toggle tema -->
+    <div class="auth-topbar">
+      <ThemeToggle />
+    </div>
+
+    <div class="auth-inner">
+
+      <!-- Logo -->
+      <div class="auth-logo" ref="logoEl">
+        <div class="auth-logo-mark">D</div>
+        <div class="auth-logo-text">
+          <h1 class="font-display">DISCIPLINA</h1>
+          <p class="auth-tagline">Entrena el cuerpo. El resto llega solo.</p>
+        </div>
       </div>
 
-      <form @submit.prevent="handleLogin" class="auth-form" novalidate>
-        <input
-          v-model="form.email"
-          type="email"
-          placeholder="Correo electrónico"
-          class="input-field"
-          :class="{ error: auth.error }"
-          autocomplete="email"
-          inputmode="email"
-        />
-        <input
-          v-model="form.password"
-          type="password"
-          placeholder="Contraseña"
-          class="input-field"
-          :class="{ error: auth.error }"
-          autocomplete="current-password"
-        />
+      <!-- Formulario -->
+      <form ref="formEl" @submit.prevent="handleLogin" novalidate class="auth-form">
 
-        <p v-if="auth.error" class="error-text">{{ auth.error }}</p>
+        <div class="fields-stack">
+          <div :ref="el => fieldsEl[0] = el" class="input-with-icon">
+            <span class="input-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            </span>
+            <input
+              v-model="form.email"
+              type="email"
+              placeholder="Correo electrónico"
+              class="input-field"
+              :class="{ error: auth.error }"
+              autocomplete="email"
+              inputmode="email"
+            />
+          </div>
 
-        <RouterLink to="/forgot-password" class="forgot-link">
-          ¿Olvidaste tu contraseña?
-        </RouterLink>
+          <div :ref="el => fieldsEl[1] = el" class="input-with-icon">
+            <span class="input-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            </span>
+            <input
+              v-model="form.password"
+              :type="showPass ? 'text' : 'password'"
+              placeholder="Contraseña"
+              class="input-field"
+              :class="{ error: auth.error }"
+              autocomplete="current-password"
+            />
+            <button type="button" class="input-action" @click="showPass = !showPass" tabindex="-1">
+              <svg v-if="!showPass" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+            </button>
+          </div>
+        </div>
 
-        <button type="submit" class="btn btn-primary btn-full" :disabled="loading">
-          <span v-if="loading" class="spinner" />
-          <span v-else>Entrar</span>
-        </button>
+        <Transition name="slide-down">
+          <p v-if="auth.error" class="error-text">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            {{ auth.error }}
+          </p>
+        </Transition>
+
+        <div :ref="el => fieldsEl[2] = el" class="auth-actions">
+          <RouterLink to="/forgot-password" class="forgot-link">
+            ¿Olvidaste tu contraseña?
+          </RouterLink>
+
+          <button type="submit" class="btn btn-primary btn-full" :disabled="loading">
+            <span v-if="loading" class="spinner" />
+            <span v-else>Entrar</span>
+          </button>
+        </div>
+
       </form>
 
-      <div class="divider">o</div>
+      <!-- Divider -->
+      <div :ref="el => fieldsEl[3] = el" class="divider">o continúa con</div>
 
-      <button class="btn btn-ghost btn-full" @click="handleGoogle" :disabled="loading">
-        <GoogleIcon />
-        Continuar con Google
-      </button>
+      <!-- Google -->
+      <div :ref="el => fieldsEl[4] = el">
+        <button class="btn-google btn-full" @click="handleGoogle" :disabled="loading">
+          <GoogleIcon />
+          <span>Continuar con Google</span>
+        </button>
+      </div>
 
-      <p class="auth-footer">
+      <!-- Footer -->
+      <p :ref="el => fieldsEl[5] = el" class="auth-footer">
         ¿Sin cuenta?
         <RouterLink to="/register">Crea una gratis</RouterLink>
       </p>
@@ -114,46 +173,147 @@ export default { components: { GoogleIcon } }
 .auth-page {
   min-height: 100dvh;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 24px 20px;
-  padding-top: calc(24px + var(--safe-top));
-  padding-bottom: calc(24px + var(--safe-bottom));
   background: var(--bg);
+  padding: var(--space-5);
+  padding-top: calc(var(--space-5) + var(--safe-top));
+  padding-bottom: calc(var(--space-5) + var(--safe-bottom));
+  position: relative;
+  overflow: hidden;
 }
+
+/* Blobs decorativos */
+.auth-bg { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.auth-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.12;
+}
+.auth-blob-1 {
+  width: 400px; height: 400px;
+  background: var(--accent);
+  top: -100px; right: -100px;
+}
+.auth-blob-2 {
+  width: 300px; height: 300px;
+  background: var(--accent-deep);
+  bottom: -80px; left: -80px;
+  opacity: 0.08;
+}
+[data-mode="light"] .auth-blob-1 { opacity: 0.15; }
+[data-mode="light"] .auth-blob-2 { opacity: 0.10; }
+
+.auth-topbar {
+  position: fixed;
+  top: calc(var(--space-4) + var(--safe-top));
+  right: var(--space-4);
+  z-index: 10;
+}
+
 .auth-inner {
   width: 100%;
   max-width: 380px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-5);
+  position: relative;
+  z-index: 1;
 }
-.auth-logo { text-align: center; margin-bottom: 8px; }
+
+/* Logo */
+.auth-logo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+.auth-logo-mark {
+  width: 48px; height: 48px;
+  border-radius: var(--radius);
+  background: var(--gradient-accent);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 500;
+  color: #fff;
+  box-shadow: var(--shadow-accent);
+  flex-shrink: 0;
+}
 .auth-logo h1 {
-  font-size: 36px;
+  font-size: var(--text-2xl);
   font-weight: 300;
-  letter-spacing: 0.2em;
-  color: var(--accent);
+  letter-spacing: 0.18em;
+  color: var(--text);
+  line-height: 1;
 }
-.auth-tagline { color: var(--muted); font-size: 13px; margin-top: 4px; letter-spacing: 0.05em; }
-.auth-form { display: flex; flex-direction: column; gap: 12px; }
-.forgot-link {
-  text-align: right;
+.auth-tagline {
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-sm);
+  margin-top: 2px;
+  letter-spacing: 0.02em;
+}
+
+/* Form */
+.auth-form { display: flex; flex-direction: column; gap: var(--space-3); }
+.fields-stack { display: flex; flex-direction: column; gap: var(--space-3); }
+.auth-actions { display: flex; flex-direction: column; gap: var(--space-3); }
+
+.forgot-link {
+  align-self: flex-end;
+  color: var(--muted);
+  font-size: var(--text-sm);
   text-decoration: none;
   transition: color 0.2s;
 }
 .forgot-link:hover { color: var(--accent); }
-.auth-footer { text-align: center; color: var(--muted); font-size: 14px; }
-.auth-footer a { color: var(--accent); text-decoration: none; font-weight: 600; }
-.spinner {
-  width: 18px; height: 18px;
-  border: 2px solid rgba(5,5,8,0.3);
-  border-top-color: #050508;
-  border-radius: 50%;
-  animation: spin 0.6s linear infinite;
-  display: inline-block;
+
+/* Google button */
+.btn-google {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  height: 52px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1.5px solid var(--border-hi);
+  color: var(--text-2);
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: var(--text-sm);
+  letter-spacing: 0.04em;
+  transition: var(--transition);
 }
-@keyframes spin { to { transform: rotate(360deg); } }
+.btn-google:hover {
+  background: var(--card);
+  border-color: var(--border-focus);
+  color: var(--text);
+}
+.btn-google:disabled { opacity: 0.5; pointer-events: none; }
+
+.auth-footer {
+  text-align: center;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+.auth-footer a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+  margin-left: 4px;
+}
+.auth-footer a:hover { text-decoration: underline; }
+
+/* Transition error */
+.slide-down-enter-active, .slide-down-leave-active {
+  transition: opacity 0.2s, transform 0.2s;
+  overflow: hidden;
+}
+.slide-down-enter-from, .slide-down-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
 </style>
