@@ -3,10 +3,10 @@ import { ref, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth.store'
 import { gsap } from 'gsap'
 
-const auth    = useAuthStore()
-const email   = ref('')
-const loading = ref(false)
-const sent    = ref(false)
+const auth      = useAuthStore()
+const email     = ref('')
+const loading   = ref(false)
+const sent      = ref(false)
 const container = ref(null)
 
 onMounted(() => {
@@ -18,8 +18,10 @@ async function handleReset() {
   if (!email.value) return
   loading.value = true
   try {
-    await auth.forgotPassword(email.value)
+    await auth.tryAction(() => auth.forgotPassword(email.value))
     sent.value = true
+  } catch {
+    // error ya en auth.error
   } finally {
     loading.value = false
   }
@@ -61,7 +63,7 @@ async function handleReset() {
         <div class="sent-icon">✓</div>
         <p class="sent-title">Revisa tu correo</p>
         <p class="sent-body">Enviamos un link a <strong>{{ email }}</strong>. Puede tardar unos minutos.</p>
-        <RouterLink to="/login" class="btn btn-ghost btn-full" style="margin-top: 16px; text-align: center; text-decoration: none;">
+        <RouterLink to="/login" class="btn btn-ghost btn-full" style="margin-top: 16px; text-align: center; text-decoration: none; display: flex;">
           Volver al login
         </RouterLink>
       </div>
@@ -88,26 +90,11 @@ async function handleReset() {
   flex-direction: column;
   gap: 16px;
 }
-.back-link {
-  color: var(--muted);
-  font-size: 14px;
-  text-decoration: none;
-  transition: color 0.2s;
-}
+.back-link { color: var(--muted); font-size: 14px; text-decoration: none; transition: color 0.2s; }
 .back-link:hover { color: var(--text); }
 .auth-logo { text-align: center; }
-.auth-logo h1 {
-  font-size: 36px;
-  font-weight: 300;
-  letter-spacing: 0.2em;
-  color: var(--accent);
-}
-.auth-subtitle {
-  color: var(--muted);
-  font-size: 14px;
-  line-height: 1.6;
-  text-align: center;
-}
+.auth-logo h1 { font-size: 36px; font-weight: 300; letter-spacing: 0.2em; color: var(--accent); }
+.auth-subtitle { color: var(--muted); font-size: 14px; line-height: 1.6; text-align: center; }
 .auth-form { display: flex; flex-direction: column; gap: 12px; }
 .sent-state { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px; }
 .sent-icon {
@@ -115,7 +102,7 @@ async function handleReset() {
   background: var(--accent-dim);
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  font-size: 24px;
+  font-size: 22px;
   color: var(--accent);
 }
 .sent-title { font-size: 18px; font-weight: 600; }

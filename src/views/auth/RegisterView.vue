@@ -7,10 +7,10 @@ import { gsap } from 'gsap'
 const router = useRouter()
 const auth   = useAuthStore()
 
-const form = reactive({ alias: '', email: '', password: '', confirm: '' })
-const loading = ref(false)
+const form       = reactive({ alias: '', email: '', password: '', confirm: '' })
+const loading    = ref(false)
 const localError = ref('')
-const container = ref(null)
+const container  = ref(null)
 
 onMounted(() => {
   auth.clearError()
@@ -18,22 +18,27 @@ onMounted(() => {
 })
 
 function validate() {
-  if (!form.alias.trim())         return 'Escribe cómo quieres que te llame la app.'
-  if (!form.email)                return 'Escribe tu correo electrónico.'
-  if (form.password.length < 6)   return 'La contraseña debe tener al menos 6 caracteres.'
+  if (!form.alias.trim())             return 'Escribe cómo quieres que te llame la app.'
+  if (!form.email)                    return 'Escribe tu correo electrónico.'
+  if (form.password.length < 6)       return 'La contraseña debe tener al menos 6 caracteres.'
   if (form.password !== form.confirm) return 'Las contraseñas no coinciden.'
   return null
 }
 
+const displayError = () => localError.value || auth.error
+
 async function handleRegister() {
   localError.value = ''
+  auth.clearError()
   const err = validate()
   if (err) { localError.value = err; return }
 
   loading.value = true
   try {
-    await auth.register(form.email, form.password, form.alias.trim())
+    await auth.tryAction(() => auth.register(form.email, form.password, form.alias.trim()))
     router.push('/onboarding')
+  } catch {
+    // error ya en auth.error
   } finally {
     loading.value = false
   }
@@ -42,14 +47,14 @@ async function handleRegister() {
 async function handleGoogle() {
   loading.value = true
   try {
-    await auth.loginGoogle()
+    await auth.tryAction(() => auth.loginGoogle())
     router.push(auth.onboardingCompleted ? '/' : '/onboarding')
+  } catch {
+    // error ya en auth.error
   } finally {
     loading.value = false
   }
 }
-
-const errorMsg = () => localError.value || auth.error
 </script>
 
 <template>
@@ -62,52 +67,47 @@ const errorMsg = () => localError.value || auth.error
       </div>
 
       <form @submit.prevent="handleRegister" class="auth-form" novalidate>
-
         <input
           v-model="form.alias"
           type="text"
           placeholder="¿Cómo te llamas? (alias)"
           class="input-field"
-          :class="{ error: errorMsg() }"
+          :class="{ error: displayError() }"
           autocomplete="nickname"
           maxlength="30"
         />
-
         <input
           v-model="form.email"
           type="email"
           placeholder="Correo electrónico"
           class="input-field"
-          :class="{ error: errorMsg() }"
+          :class="{ error: displayError() }"
           autocomplete="email"
           inputmode="email"
         />
-
         <input
           v-model="form.password"
           type="password"
           placeholder="Contraseña (mín. 6 caracteres)"
           class="input-field"
-          :class="{ error: errorMsg() }"
+          :class="{ error: displayError() }"
           autocomplete="new-password"
         />
-
         <input
           v-model="form.confirm"
           type="password"
           placeholder="Confirmar contraseña"
           class="input-field"
-          :class="{ error: errorMsg() }"
+          :class="{ error: displayError() }"
           autocomplete="new-password"
         />
 
-        <p v-if="errorMsg()" class="error-text">{{ errorMsg() }}</p>
+        <p v-if="displayError()" class="error-text">{{ displayError() }}</p>
 
         <button type="submit" class="btn btn-primary btn-full" :disabled="loading">
           <span v-if="loading" class="spinner" />
           <span v-else>Crear cuenta</span>
         </button>
-
       </form>
 
       <div class="divider">o</div>
@@ -163,18 +163,9 @@ export default { components: { GoogleIcon } }
   letter-spacing: 0.2em;
   color: var(--accent);
 }
-.auth-tagline {
-  color: var(--muted);
-  font-size: 13px;
-  margin-top: 4px;
-  letter-spacing: 0.05em;
-}
+.auth-tagline { color: var(--muted); font-size: 13px; margin-top: 4px; letter-spacing: 0.05em; }
 .auth-form { display: flex; flex-direction: column; gap: 10px; }
-.auth-footer {
-  text-align: center;
-  color: var(--muted);
-  font-size: 14px;
-}
+.auth-footer { text-align: center; color: var(--muted); font-size: 14px; }
 .auth-footer a { color: var(--accent); text-decoration: none; font-weight: 600; }
 .spinner {
   width: 18px; height: 18px;

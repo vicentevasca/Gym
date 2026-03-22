@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app'
 import { getAuth } from 'firebase/auth'
-import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore'
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore'
 import { getStorage } from 'firebase/storage'
 
 const firebaseConfig = {
@@ -13,20 +13,17 @@ const firebaseConfig = {
   measurementId:     import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 }
 
-const app  = initializeApp(firebaseConfig)
-export const auth    = getAuth(app)
-export const db      = getFirestore(app)
-export const storage = getStorage(app)
+const app = initializeApp(firebaseConfig)
 
-// Offline-first: Firestore guarda datos localmente si no hay red
-enableIndexedDbPersistence(db).catch((err) => {
-  if (err.code === 'failed-precondition') {
-    // Múltiples tabs abiertas — sólo la primera obtiene persistencia
-    console.warn('Firestore offline: múltiples tabs abiertas')
-  } else if (err.code === 'unimplemented') {
-    // El navegador no soporta IndexedDB
-    console.warn('Firestore offline: navegador no soportado')
-  }
+export const auth = getAuth(app)
+
+// Firestore con persistencia offline (API moderna Firebase v9+)
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({
+    tabManager: persistentMultipleTabManager(), // Soporta múltiples tabs
+  }),
 })
+
+export const storage = getStorage(app)
 
 export default app

@@ -1,14 +1,13 @@
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.store'
 import { gsap } from 'gsap'
-import { onMounted } from 'vue'
 
-const router = useRouter()
-const auth   = useAuthStore()
+const router  = useRouter()
+const auth    = useAuthStore()
 
-const form = reactive({ email: '', password: '' })
+const form    = reactive({ email: '', password: '' })
 const loading = ref(false)
 const container = ref(null)
 
@@ -21,8 +20,10 @@ async function handleLogin() {
   if (!form.email || !form.password) return
   loading.value = true
   try {
-    await auth.login(form.email, form.password)
+    await auth.tryAction(() => auth.login(form.email, form.password))
     router.push(auth.onboardingCompleted ? '/' : '/onboarding')
+  } catch {
+    // error ya en auth.error
   } finally {
     loading.value = false
   }
@@ -31,8 +32,10 @@ async function handleLogin() {
 async function handleGoogle() {
   loading.value = true
   try {
-    await auth.loginGoogle()
+    await auth.tryAction(() => auth.loginGoogle())
     router.push(auth.onboardingCompleted ? '/' : '/onboarding')
+  } catch {
+    // error ya en auth.error
   } finally {
     loading.value = false
   }
@@ -43,37 +46,29 @@ async function handleGoogle() {
   <div class="auth-page">
     <div ref="container" class="auth-inner">
 
-      <!-- Logo -->
       <div class="auth-logo">
         <h1 class="font-display">DISCIPLINA</h1>
         <p class="auth-tagline">Entrena el cuerpo. El resto llega solo.</p>
       </div>
 
-      <!-- Form -->
       <form @submit.prevent="handleLogin" class="auth-form" novalidate>
-
-        <div class="field-group">
-          <input
-            v-model="form.email"
-            type="email"
-            placeholder="Correo electrónico"
-            class="input-field"
-            :class="{ error: auth.error }"
-            autocomplete="email"
-            inputmode="email"
-          />
-        </div>
-
-        <div class="field-group">
-          <input
-            v-model="form.password"
-            type="password"
-            placeholder="Contraseña"
-            class="input-field"
-            :class="{ error: auth.error }"
-            autocomplete="current-password"
-          />
-        </div>
+        <input
+          v-model="form.email"
+          type="email"
+          placeholder="Correo electrónico"
+          class="input-field"
+          :class="{ error: auth.error }"
+          autocomplete="email"
+          inputmode="email"
+        />
+        <input
+          v-model="form.password"
+          type="password"
+          placeholder="Contraseña"
+          class="input-field"
+          :class="{ error: auth.error }"
+          autocomplete="current-password"
+        />
 
         <p v-if="auth.error" class="error-text">{{ auth.error }}</p>
 
@@ -85,18 +80,15 @@ async function handleGoogle() {
           <span v-if="loading" class="spinner" />
           <span v-else>Entrar</span>
         </button>
-
       </form>
 
       <div class="divider">o</div>
 
-      <!-- Google -->
       <button class="btn btn-ghost btn-full" @click="handleGoogle" :disabled="loading">
         <GoogleIcon />
         Continuar con Google
       </button>
 
-      <!-- Registro -->
       <p class="auth-footer">
         ¿Sin cuenta?
         <RouterLink to="/register">Crea una gratis</RouterLink>
@@ -106,7 +98,6 @@ async function handleGoogle() {
   </div>
 </template>
 
-<!-- Inline Google icon para no depender de librerías -->
 <script>
 const GoogleIcon = {
   template: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none">
@@ -130,7 +121,6 @@ export default { components: { GoogleIcon } }
   padding-bottom: calc(24px + var(--safe-bottom));
   background: var(--bg);
 }
-
 .auth-inner {
   width: 100%;
   max-width: 380px;
@@ -138,34 +128,15 @@ export default { components: { GoogleIcon } }
   flex-direction: column;
   gap: 16px;
 }
-
-.auth-logo {
-  text-align: center;
-  margin-bottom: 8px;
-}
-
+.auth-logo { text-align: center; margin-bottom: 8px; }
 .auth-logo h1 {
   font-size: 36px;
   font-weight: 300;
   letter-spacing: 0.2em;
   color: var(--accent);
 }
-
-.auth-tagline {
-  color: var(--muted);
-  font-size: 13px;
-  margin-top: 4px;
-  letter-spacing: 0.05em;
-}
-
-.auth-form {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.field-group { display: flex; flex-direction: column; }
-
+.auth-tagline { color: var(--muted); font-size: 13px; margin-top: 4px; letter-spacing: 0.05em; }
+.auth-form { display: flex; flex-direction: column; gap: 12px; }
 .forgot-link {
   text-align: right;
   color: var(--muted);
@@ -174,18 +145,8 @@ export default { components: { GoogleIcon } }
   transition: color 0.2s;
 }
 .forgot-link:hover { color: var(--accent); }
-
-.auth-footer {
-  text-align: center;
-  color: var(--muted);
-  font-size: 14px;
-}
-.auth-footer a {
-  color: var(--accent);
-  text-decoration: none;
-  font-weight: 600;
-}
-
+.auth-footer { text-align: center; color: var(--muted); font-size: 14px; }
+.auth-footer a { color: var(--accent); text-decoration: none; font-weight: 600; }
 .spinner {
   width: 18px; height: 18px;
   border: 2px solid rgba(5,5,8,0.3);
