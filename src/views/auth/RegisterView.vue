@@ -10,7 +10,7 @@ const router = useRouter()
 const auth   = useAuthStore()
 useTheme()
 
-const form       = reactive({ alias: '', email: '', password: '', confirm: '' })
+const form       = reactive({ alias: '', email: '', password: '', confirm: '', gender: '' })
 const loading    = ref(false)
 const showPass   = ref(false)
 const localError = ref('')
@@ -43,7 +43,7 @@ async function handleRegister() {
 
   loading.value = true
   try {
-    await auth.tryAction(() => auth.register(form.email, form.password, form.alias.trim()))
+    await auth.tryAction(() => auth.register(form.email, form.password, form.alias.trim(), form.gender))
     router.push('/onboarding')
   } catch {
     shakeError(formEl.value)
@@ -100,7 +100,30 @@ async function handleGoogle() {
           />
         </div>
 
-        <div :ref="el => fieldsEl[1] = el" class="input-with-icon">
+        <!-- Selector de género — opcional, mejora la experiencia personal -->
+        <div :ref="el => fieldsEl[1] = el" class="gender-section">
+          <p class="gender-label">¿Cómo quieres que la app se dirija a ti?</p>
+          <div class="gender-options">
+            <button
+              v-for="opt in [
+                { value: 'masculino',        label: 'Hombre',           emoji: '♂' },
+                { value: 'femenino',         label: 'Mujer',            emoji: '♀' },
+                { value: 'prefiero_no_decir',label: 'Prefiero no decir',emoji: '○' },
+              ]"
+              :key="opt.value"
+              type="button"
+              class="gender-opt"
+              :class="{ active: form.gender === opt.value }"
+              @click="form.gender = form.gender === opt.value ? '' : opt.value"
+            >
+              <span class="gender-opt-emoji">{{ opt.emoji }}</span>
+              <span class="gender-opt-label">{{ opt.label }}</span>
+            </button>
+          </div>
+          <p class="gender-hint">Opcional — personaliza el idioma de la app</p>
+        </div>
+
+        <div :ref="el => fieldsEl[2] = el" class="input-with-icon">
           <span class="input-icon">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
           </span>
@@ -115,7 +138,7 @@ async function handleGoogle() {
           />
         </div>
 
-        <div :ref="el => fieldsEl[2] = el" class="input-with-icon">
+        <div :ref="el => fieldsEl[3] = el" class="input-with-icon">
           <span class="input-icon">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
           </span>
@@ -133,7 +156,7 @@ async function handleGoogle() {
           </button>
         </div>
 
-        <div :ref="el => fieldsEl[3] = el" class="input-with-icon">
+        <div :ref="el => fieldsEl[4] = el" class="input-with-icon">
           <span class="input-icon">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 12l2 2 4-4"/><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
           </span>
@@ -154,7 +177,7 @@ async function handleGoogle() {
           </p>
         </Transition>
 
-        <div :ref="el => fieldsEl[4] = el">
+        <div :ref="el => fieldsEl[5] = el">
           <button type="submit" class="btn btn-primary btn-full" :disabled="loading">
             <span v-if="loading" class="spinner" />
             <span v-else>Crear cuenta</span>
@@ -163,16 +186,16 @@ async function handleGoogle() {
 
       </form>
 
-      <div :ref="el => fieldsEl[5] = el" class="divider">o continúa con</div>
+      <div :ref="el => fieldsEl[6] = el" class="divider">o continúa con</div>
 
-      <div :ref="el => fieldsEl[6] = el">
+      <div :ref="el => fieldsEl[7] = el">
         <button class="btn-google btn-full" @click="handleGoogle" :disabled="loading">
           <GoogleIcon />
           <span>Continuar con Google</span>
         </button>
       </div>
 
-      <p :ref="el => fieldsEl[7] = el" class="auth-footer">
+      <p :ref="el => fieldsEl[8] = el" class="auth-footer">
         ¿Ya tienes cuenta?
         <RouterLink to="/login">Inicia sesión</RouterLink>
       </p>
@@ -235,4 +258,27 @@ export default { components: { GoogleIcon } }
 .auth-footer a { color: var(--accent); text-decoration: none; font-weight: 600; margin-left: 4px; }
 .slide-down-enter-active, .slide-down-leave-active { transition: opacity 0.2s, transform 0.2s; }
 .slide-down-enter-from, .slide-down-leave-to { opacity: 0; transform: translateY(-6px); }
+
+/* Selector de género */
+.gender-section { display: flex; flex-direction: column; gap: var(--space-2); }
+.gender-label {
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--muted);
+}
+.gender-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-2); }
+.gender-opt {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: var(--space-3) var(--space-2);
+  background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: var(--radius); cursor: pointer;
+  transition: var(--transition); font-family: var(--font-ui);
+}
+.gender-opt:hover { border-color: var(--border-hi); }
+.gender-opt.active { border-color: var(--accent); background: var(--accent-dim); }
+.gender-opt-emoji { font-size: 18px; }
+.gender-opt-label { font-size: var(--text-xs); font-weight: 700; color: var(--muted); }
+.gender-opt.active .gender-opt-label { color: var(--accent); }
+.gender-hint { font-size: var(--text-xs); color: var(--muted); text-align: center; }
 </style>

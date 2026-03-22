@@ -53,9 +53,9 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function register(email, password, alias) {
+  async function register(email, password, alias, gender = '') {
     error.value = null
-    const firebaseUser = await registerWithEmail(email, password, alias)
+    const firebaseUser = await registerWithEmail(email, password, alias, gender)
     user.value = firebaseUser
     await loadProfile(firebaseUser.uid)
   }

@@ -14,10 +14,10 @@ import { auth, db } from './config'
 const googleProvider = new GoogleAuthProvider()
 
 // Registrar con email + password
-export async function registerWithEmail(email, password, alias) {
+export async function registerWithEmail(email, password, alias, gender = '') {
   const credential = await createUserWithEmailAndPassword(auth, email, password)
   await updateProfile(credential.user, { displayName: alias })
-  await createUserProfile(credential.user, alias)
+  await createUserProfile(credential.user, alias, gender)
   return credential.user
 }
 
@@ -55,27 +55,28 @@ export function onAuthChange(callback) {
 }
 
 // Crear perfil inicial en Firestore
-async function createUserProfile(user, alias) {
+async function createUserProfile(user, alias, gender = '') {
   const profileRef = doc(db, 'users', user.uid, 'profile', 'data')
   await setDoc(profileRef, {
     uid: user.uid,
     email: user.email,
     alias,
+    gender:        gender || 'masculino',  // default masculino si no seleccionó
     trainer_alias: 'Coach',
-    created_at: serverTimestamp(),
+    created_at:    serverTimestamp(),
     onboarding_completed: false,
-    theme_color: 'lilac',
-    language: 'es',
-    speak_mode: 'tu',
-    biometrics: {},
-    goals: {},
-    personal: {},
-    training_prefs: {},
+    theme_color:   'lilac',
+    language:      'es',
+    speak_mode:    'tu',
+    biometrics:    {},
+    goals:         {},
+    personal:      {},
+    training_prefs:{},
     settings: {
       notifications_enabled: false,
-      verse_time: '06:00',
-      verse_style: 'poetico',
-      units: 'metric',
+      verse_time:   '06:00',
+      verse_style:  'poetico',
+      units:        'metric',
     },
     spotify: { connected: false },
   })

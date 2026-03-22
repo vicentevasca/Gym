@@ -31,6 +31,12 @@ const nav = [
     icon: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>`,
     iconFilled: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>`,
   },
+  {
+    to: '/rewards',
+    label: 'Retos',
+    icon: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg>`,
+    iconFilled: `<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2a6 6 0 110 12A6 6 0 0112 2zm0 2a4 4 0 100 8 4 4 0 000-8zm3.477 8.89L17 22l-5-3-5 3 1.523-9.11A7.96 7.96 0 0012 20a7.96 7.96 0 003.477-.11z"/></svg>`,
+  },
 ]
 
 const isActive = (path) => path === '/' ? route.path === '/' : route.path.startsWith(path)

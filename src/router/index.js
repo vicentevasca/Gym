@@ -61,6 +61,12 @@ const routes = [
     component: () => import('@/views/ProfileView.vue'),
     meta: { requiresAuth: true, requiresOnboarding: true },
   },
+  {
+    path: '/rewards',
+    name: 'Rewards',
+    component: () => import('@/views/RewardsView.vue'),
+    meta: { requiresAuth: true, requiresOnboarding: true },
+  },
 
   // Fallback
   { path: '/:pathMatch(.*)*', redirect: '/' },

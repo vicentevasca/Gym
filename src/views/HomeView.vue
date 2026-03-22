@@ -9,6 +9,7 @@ import { useTrainingStore }  from '@/stores/training.store'
 import { useNutritionStore } from '@/stores/nutrition.store'
 import { usePointsStore }    from '@/stores/points.store'
 import { useVerseStore }     from '@/stores/verse.store'
+import { useGendered }       from '@/composables/useGendered'
 import { staggerIn, fadeIn } from '@/composables/useAnimations'
 
 const auth      = useAuthStore()
@@ -17,16 +18,10 @@ const nutrition = useNutritionStore()
 const points    = usePointsStore()
 const verse     = useVerseStore()
 const router    = useRouter()
+const { greeting, g } = useGendered()
 
 const content     = ref(null)
 const showVerse   = ref(false)
-
-const greeting = () => {
-  const h = new Date().getHours()
-  if (h < 12) return 'Buenos días'
-  if (h < 19) return 'Buenas tardes'
-  return 'Buenas noches'
-}
 
 onMounted(async () => {
   fadeIn(content.value, { y: 0, duration: 0.4 })
@@ -68,8 +63,9 @@ const sessionProgress = computed(() => {
 
         <!-- Greeting -->
         <div class="welcome-section">
-          <p class="welcome-greeting label-caps">{{ greeting() }}</p>
+          <p class="welcome-greeting label-caps">{{ greeting }}</p>
           <h2 class="welcome-name display-lg">{{ auth.alias }}</h2>
+          <p class="welcome-sub">{{ g('¡Listo para hoy?', '¡Lista para hoy?') }}</p>
         </div>
 
         <div class="cards-grid">
@@ -137,7 +133,13 @@ const sessionProgress = computed(() => {
 
 .welcome-section { margin-bottom: var(--space-6); }
 .welcome-greeting { margin-bottom: var(--space-1); }
-.welcome-name { color: var(--text); }
+.welcome-name { color: var(--text); line-height: var(--leading-tight); }
+.welcome-sub {
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  color: var(--muted);
+  margin-top: var(--space-2);
+}
 
 .cards-grid { display: flex; flex-direction: column; gap: var(--space-3); }
 
