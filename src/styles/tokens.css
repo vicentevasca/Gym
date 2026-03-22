@@ -1,0 +1,53 @@
+/* ──────────────────────────────────────────────────
+   DISCIPLINA — Design Tokens
+   ────────────────────────────────────────────────── */
+
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Syne:wght@400;500;600;700&family=DM+Mono:wght@300;400&display=swap');
+
+:root {
+  /* Colores base */
+  --bg:        #050508;
+  --surface:   #0e0e1a;
+  --card:      #12121f;
+  --border:    rgba(216, 180, 254, 0.08);
+  --border-hi: rgba(216, 180, 254, 0.20);
+
+  /* Acento default: lilac */
+  --accent:   #D8B4FE;
+  --accent-2: #818cf8;
+  --accent-dim: rgba(216, 180, 254, 0.15);
+
+  /* Semánticos */
+  --success: #4ade80;
+  --warning: #fbbf24;
+  --danger:  #f87171;
+
+  /* Texto */
+  --text:   #e8e8f0;
+  --muted:  #6b6b80;
+  --faint:  #2a2a3a;
+
+  /* Tipografía */
+  --font-display: 'Cormorant Garamond', serif;
+  --font-ui:      'Syne', sans-serif;
+  --font-mono:    'DM Mono', monospace;
+
+  /* Mobile safe areas */
+  --safe-top:    env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left:   env(safe-area-inset-left, 0px);
+  --safe-right:  env(safe-area-inset-right, 0px);
+
+  /* Layout */
+  --nav-height:    56px;
+  --header-height: 48px;
+  --radius:        12px;
+  --radius-sm:     8px;
+  --radius-lg:     20px;
+}
+
+/* Temas de acento alternativos */
+[data-theme="cyan"]  { --accent: #67e8f9; --accent-2: #22d3ee; --accent-dim: rgba(103,232,249,0.15); }
+[data-theme="amber"] { --accent: #fbbf24; --accent-2: #f59e0b; --accent-dim: rgba(251,191,36,0.15);  }
+[data-theme="coral"] { --accent: #fb7185; --accent-2: #f43f5e; --accent-dim: rgba(251,113,133,0.15); }
+[data-theme="green"] { --accent: #4ade80; --accent-2: #22c55e; --accent-dim: rgba(74,222,128,0.15);  }
