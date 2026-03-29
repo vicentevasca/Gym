@@ -9,15 +9,21 @@ import { useAuthStore } from './auth.store'
 import { toDateKey } from '@/utils/formatters'
 
 const POINTS_CONFIG = {
-  training_completed:  100,
-  session_complete:    100,
-  nutrition_logged:     30,
-  water_goal:           20,
-  daily_close:          25,
-  new_record:           50,
+  set_complete:        3,
+  exercise_complete:   10,
+  session_complete:    50,
+  session_full_bonus:  25,    // extra cuando se completan TODOS los ejercicios
+  nutrition_logged:    30,
+  water_goal:          20,
+  daily_close:         25,
+  new_record:          50,
   streak_7:            150,
   streak_30:           500,
+  challenge_complete:  null,  // variable, viene del reward
 }
+
+// Multiplicador cuando se completan todos los ejercicios del día
+const FULL_DAY_MULTIPLIER = 1.5
 
 export const usePointsStore = defineStore('points', () => {
   const auth        = useAuthStore()
@@ -27,7 +33,8 @@ export const usePointsStore = defineStore('points', () => {
   const loading     = ref(false)
   let unsub         = null
 
-  const balance = computed(() => _balance.value.balance ?? 0)
+  const balance      = computed(() => _balance.value.balance ?? 0)
+  const totalEarned  = computed(() => _balance.value.total_earned ?? 0)
 
   // ── Suscripción realtime ───────────────────────────────
 
@@ -144,8 +151,59 @@ export const usePointsStore = defineStore('points', () => {
     })
   }
 
+  // ── Ganar puntos por serie / ejercicio / sesión ────────────────────────────
+
+  async function earnSet()                { await earnPoints('set_complete') }
+  async function earnExercise()           { await earnPoints('exercise_complete') }
+  async function earnSessionBonus()       { await earnPoints('session_complete') }
+
+  // Llamar al completar sesión. sessionPoints = puntos acumulados de sets+ejercicios.
+  // Si all_complete, aplica multiplicador ×1.5 al total y suma bonus.
+  async function earnSessionComplete(sessionPoints, allComplete) {
+    const base    = POINTS_CONFIG.session_complete
+    let total     = base
+    if (allComplete && sessionPoints > 0) {
+      const multiplied = Math.round(sessionPoints * FULL_DAY_MULTIPLIER)
+      const bonus      = multiplied - sessionPoints
+      if (bonus > 0) await earnPoints('session_full_bonus', bonus)
+    }
+    await earnPoints('session_complete', total)
+    return total
+  }
+
+  // ── Aplicar decaimiento (resta solo del balance, no del total_earned) ───────
+
+  async function applyDecay(amount) {
+    if (!auth.uid || amount <= 0) return
+    const balRef  = doc(db, 'users', auth.uid, 'points', 'balance')
+    const histRef = collection(db, 'users', auth.uid, 'points_history')
+
+    await runTransaction(db, async (tx) => {
+      const snap    = await tx.get(balRef)
+      const current = snap.exists() ? snap.data().balance : 0
+      const newBal  = Math.max(current - amount, 0)
+
+      tx.set(balRef, {
+        balance:        newBal,
+        total_earned:   snap.data()?.total_earned    || 0,
+        total_redeemed: snap.data()?.total_redeemed  || 0,
+        last_updated:   serverTimestamp(),
+      })
+
+      await addDoc(histRef, {
+        type:          'decay',
+        amount:        -(current - newBal),
+        reason:        'días_sin_entrenar',
+        balance_after: newBal,
+        timestamp:     serverTimestamp(),
+      })
+    })
+  }
+
   return {
-    balance, log, lastEarned, loading,
-    initBalance, subscribe, unsubscribe, earnPoints, redeemReward, logHabit,
+    balance, totalEarned, log, lastEarned, loading,
+    initBalance, subscribe, unsubscribe,
+    earnPoints, earnSet, earnExercise, earnSessionComplete, applyDecay,
+    redeemReward, logHabit,
   }
 })

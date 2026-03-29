@@ -5,20 +5,26 @@ import {
   collection, getDocs, onSnapshot, serverTimestamp,
 } from 'firebase/firestore'
 import { db } from '@/firebase/config'
-import { useAuthStore } from './auth.store'
-import { toDateKey } from '@/utils/formatters'
+import { useAuthStore }   from './auth.store'
+import { usePointsStore } from './points.store'
+import { useRankingStore } from './ranking.store'
+import { toDateKey }      from '@/utils/formatters'
 import { generateSession, checkProgression } from '@/utils/progressionEngine'
+import { generateRoutine, getSessionForDate } from '@/utils/routineGenerator'
+import { useToast } from '@/composables/useToast'
 
 export const useTrainingStore = defineStore('training', () => {
-  const auth = useAuthStore()
+  const auth    = useAuthStore()
 
-  const session         = ref(null)   // sesión del día
-  const records         = ref({})     // récords por exerciseId
-  const elapsedSeconds  = ref(0)
-  const loading         = ref(false)
-  const newRecord       = ref(null)   // último PR detectado
-  let sessionTimer      = null
-  let sessionUnsub      = null
+  const session             = ref(null)
+  const records             = ref({})
+  const elapsedSeconds      = ref(0)
+  const loading             = ref(false)
+  const newRecord           = ref(null)
+  const sessionPointsEarned = ref(0)  // acumulado de sets+ejercicios en la sesión actual
+  const routine             = ref(null)
+  let sessionTimer          = null
+  let sessionUnsub          = null
 
   // Aliases for views
   const todaySession           = computed(() => session.value)
@@ -33,7 +39,38 @@ export const useTrainingStore = defineStore('training', () => {
     return exercises_total ? Math.round((exercises_completed / exercises_total) * 100) : 0
   })
 
-  // ── Cargar sesión del día ──────────────────────────────
+  // ── Cargar rutina del usuario ──────────────────────────────
+
+  async function loadRoutine() {
+    if (!auth.uid) return
+    try {
+      const snap = await getDoc(doc(db, 'users', auth.uid, 'routines', 'current'))
+      if (snap.exists()) routine.value = snap.data()
+    } catch (e) {
+      console.warn('[training] No se pudo cargar la rutina:', e)
+    }
+  }
+
+  async function saveRoutine(routineData) {
+    if (!auth.uid) return
+    await setDoc(doc(db, 'users', auth.uid, 'routines', 'current'), {
+      ...routineData,
+      created_at: serverTimestamp(),
+      updated_at: serverTimestamp(),
+    })
+    routine.value = routineData
+  }
+
+  async function createAutoRoutine(params) {
+    const recs = Object.keys(records.value).length ? records.value : await loadRecords()
+    const generated = generateRoutine(params, recs)
+    generated.id   = Date.now().toString()
+    generated.name = `Mi rutina — ${params.style}`
+    await saveRoutine(generated)
+    return generated
+  }
+
+  // ── Cargar sesión del día ──────────────────────────────────
 
   async function loadTodaySession() {
     if (!auth.uid) return
@@ -46,9 +83,23 @@ export const useTrainingStore = defineStore('training', () => {
       if (snap.exists()) {
         session.value = snap.data()
       } else {
-        // Generar desde perfil
+        // Cargar rutina si no está en memoria
+        if (!routine.value) await loadRoutine()
+
         const recs = await loadRecords()
-        const generated = generateSession(auth.profile, dateKey, recs)
+
+        let generated = null
+
+        // Intentar generar desde la rutina personalizada
+        if (routine.value) {
+          generated = getSessionForDate(routine.value, dateKey, recs)
+        }
+
+        // Fallback al generador legacy
+        if (!generated) {
+          generated = generateSession(auth.profile, dateKey, recs)
+        }
+
         if (generated) {
           await setDoc(logRef, generated)
           session.value = generated
@@ -65,7 +116,7 @@ export const useTrainingStore = defineStore('training', () => {
     }
   }
 
-  // ── Récords personales ─────────────────────────────────
+  // ── Récords personales ─────────────────────────────────────
 
   async function loadRecords() {
     if (!auth.uid) return {}
@@ -95,12 +146,16 @@ export const useTrainingStore = defineStore('training', () => {
       records.value[exerciseId] = update
       newRecord.value = { exerciseId, weightKg }
       setTimeout(() => { newRecord.value = null }, 4000)
+      // Toast de PR
+      const exName = session.value?.exercises?.find(e => e.exercise_id === exerciseId)?.name || exerciseId
+      const { toast } = useToast()
+      toast.pr(exName)
       return true
     }
     return false
   }
 
-  // ── Completar serie ────────────────────────────────────
+  // ── Completar serie ────────────────────────────────────────
 
   async function completeSerie(exerciseIndex, setIndex, weightKg, reps) {
     if (!auth.uid || !session.value) return
@@ -116,9 +171,11 @@ export const useTrainingStore = defineStore('training', () => {
     const exComplete = sets.every(s => s.completed)
     if (exComplete) {
       exercise.completed = true
-      // Verificar PR
-      const maxSet = sets.reduce((a, b) => b.weight_kg > a.weight_kg ? b : a, sets[0])
-      await checkAndUpdateRecord(exercise.exercise_id, maxSet.weight_kg, maxSet.reps)
+      // Verificar PR solo si hay peso real
+      if (weightKg > 0) {
+        const maxSet = sets.reduce((a, b) => b.weight_kg > a.weight_kg ? b : a, sets[0])
+        await checkAndUpdateRecord(exercise.exercise_id, maxSet.weight_kg, maxSet.reps)
+      }
     }
 
     exercises[exerciseIndex] = exercise
@@ -129,6 +186,16 @@ export const useTrainingStore = defineStore('training', () => {
       exercises_completed: completedCount,
     })
 
+    // Puntos por serie y ejercicio
+    const pts = usePointsStore()
+    await pts.earnSet()
+    sessionPointsEarned.value += 3
+
+    if (exComplete) {
+      await pts.earnExercise()
+      sessionPointsEarned.value += 10
+    }
+
     // Vibración
     navigator.vibrate?.(30)
 
@@ -138,7 +205,7 @@ export const useTrainingStore = defineStore('training', () => {
     }
   }
 
-  // ── Iniciar / Completar sesión ─────────────────────────
+  // ── Iniciar / Completar sesión ─────────────────────────────
 
   async function startSession() {
     if (!auth.uid || !session.value) return
@@ -165,7 +232,25 @@ export const useTrainingStore = defineStore('training', () => {
       volume_total_kg: Math.round(totalVolume),
     })
 
-    // Dar puntos (points store lo maneja externamente para evitar circular dep)
+    // ── Puntos y ranking ─────────────────────────────────────────────────────
+    const pts     = usePointsStore()
+    const ranking = useRankingStore()
+
+    const completedExercises = session.value?.exercises?.filter(e => e.completed).length || 0
+    const allComplete  = completedExercises >= (session.value?.exercises?.length || 0)
+    const sessionPts   = sessionPointsEarned.value
+    const earnedTotal  = await pts.earnSessionComplete(sessionPts, allComplete)
+
+    // Decaimiento pendiente (días sin entrenar)
+    const decayAmt = ranking.consumeDecay?.() || 0
+    if (decayAmt > 0) await pts.applyDecay?.(decayAmt)
+
+    // Registrar en ranking: XP = sessionPts + earnedTotal (session bonus)
+    const totalXP = sessionPts + (allComplete ? Math.round(sessionPts * 0.5) : 0) + earnedTotal
+    await ranking.recordTraining(totalXP, Math.round(totalVolume))
+
+    sessionPointsEarned.value = 0  // reset para la próxima sesión
+
     navigator.vibrate?.([50, 30, 50, 30, 100])
 
     // Sugerencias de progresión
@@ -186,7 +271,7 @@ export const useTrainingStore = defineStore('training', () => {
     }
   }
 
-  // ── Timer ──────────────────────────────────────────────
+  // ── Timer ──────────────────────────────────────────────────
 
   function startTimer() {
     elapsedSeconds.value = 0
@@ -205,7 +290,10 @@ export const useTrainingStore = defineStore('training', () => {
 
   return {
     session, todaySession, progressionSuggestions,
-    records, elapsedSeconds, loading, newRecord, isActive, isComplete, progressPct,
+    records, elapsedSeconds, loading, newRecord, sessionPointsEarned,
+    isActive, isComplete, progressPct,
+    routine,
     loadTodaySession, loadRecords, completeSerie, startSession, completeSession, cleanup,
+    loadRoutine, saveRoutine, createAutoRoutine,
   }
 })

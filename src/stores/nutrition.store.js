@@ -1,18 +1,21 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
+import { doc, getDoc, setDoc, updateDoc, getDocs, collection, serverTimestamp } from 'firebase/firestore'
 import { db } from '@/firebase/config'
 import { useAuthStore } from './auth.store'
 import { calcNutritionPlan } from '@/utils/tdee'
 import { toDateKey } from '@/utils/formatters'
 import { pct } from '@/utils/formatters'
+import { useToast } from '@/composables/useToast'
 
 export const useNutritionStore = defineStore('nutrition', () => {
   const auth = useAuthStore()
 
-  const dayLog  = ref(null)
-  const plan    = ref(null)
-  const loading = ref(false)
+  const dayLog   = ref(null)
+  const plan     = ref(null)
+  const loading  = ref(false)
+  const dietPlan = ref(null)
+  const history  = ref([])
 
   const consumed = computed(() => {
     if (!dayLog.value) return { kcal: 0, protein: 0, carbs: 0, fat: 0 }
@@ -60,20 +63,23 @@ export const useNutritionStore = defineStore('nutrition', () => {
         dayLog.value = snap.data()
       } else {
         const initial = {
-          date:       dateKey,
+          date:        dateKey,
           target_kcal: plan.value.targetKcal,
-          water_ml:   0,
+          water_ml:    0,
           meals: [
-            { id: 'desayuno',  name: 'Desayuno',   time: '08:00', foods: [] },
-            { id: 'almuerzo',  name: 'Almuerzo',   time: '13:00', foods: [] },
-            { id: 'cena',      name: 'Cena',        time: '20:00', foods: [] },
-            { id: 'snacks',    name: 'Snacks',      time: '',       foods: [] },
+            { id: 'desayuno', name: 'Desayuno', time: '08:00', foods: [] },
+            { id: 'almuerzo', name: 'Almuerzo', time: '13:00', foods: [] },
+            { id: 'cena',     name: 'Cena',     time: '20:00', foods: [] },
+            { id: 'snacks',   name: 'Snacks',   time: '',       foods: [] },
           ],
           created_at: serverTimestamp(),
         }
         await setDoc(logRef, initial)
         dayLog.value = initial
       }
+
+      // Cargar plan de dieta e historial en paralelo
+      await Promise.all([loadDietPlan(), loadHistory()])
     } finally {
       loading.value = false
     }
@@ -87,13 +93,13 @@ export const useNutritionStore = defineStore('nutrition', () => {
     const dateKey = toDateKey()
     const logRef  = doc(db, 'users', auth.uid, 'nutrition_logs', dateKey)
     const entry   = {
-      food_id:   food.food_id || Date.now().toString(),
-      name:      food.name,
-      amount_g:  food.amount_g ?? 100,
-      kcal:      food.kcal    ?? 0,
-      protein:   food.protein ?? 0,
-      carbs:     food.carbs   ?? 0,
-      fat:       food.fat     ?? 0,
+      food_id:  food.food_id || Date.now().toString(),
+      name:     food.name,
+      amount_g: food.amount_g ?? 100,
+      kcal:     food.kcal    ?? 0,
+      protein:  food.protein ?? 0,
+      carbs:    food.carbs   ?? 0,
+      fat:      food.fat     ?? 0,
     }
     const meals = dayLog.value.meals.map(m => {
       if (m.id !== mealId) return m
@@ -101,6 +107,8 @@ export const useNutritionStore = defineStore('nutrition', () => {
     })
     await updateDoc(logRef, { meals })
     dayLog.value = { ...dayLog.value, meals }
+    const { toast } = useToast()
+    toast.success(`${food.name} añadido — ${food.kcal} kcal`)
   }
 
   // ── Eliminar alimento ──────────────────────────────────
@@ -128,8 +136,92 @@ export const useNutritionStore = defineStore('nutrition', () => {
     dayLog.value = { ...dayLog.value, water_ml: newTotal }
   }
 
+  // ── Plan de dieta ──────────────────────────────────────
+
+  async function saveDietPlan(planData) {
+    if (!auth.uid) return
+    const planRef = doc(db, 'users', auth.uid, 'nutrition_logs', 'diet_profile')
+    const toSave  = {
+      ...planData,
+      saved_at: serverTimestamp(),
+    }
+    await setDoc(planRef, toSave)
+    dietPlan.value = planData
+  }
+
+  async function loadDietPlan() {
+    if (!auth.uid) return
+    try {
+      const planRef = doc(db, 'users', auth.uid, 'nutrition_logs', 'diet_profile')
+      const snap    = await getDoc(planRef)
+      if (snap.exists()) {
+        dietPlan.value = snap.data()
+      }
+    } catch (e) {
+      console.warn('[nutrition] No se pudo cargar el plan de dieta:', e)
+    }
+  }
+
+  // ── Historial de 7 días ────────────────────────────────
+
+  async function loadHistory() {
+    if (!auth.uid) return
+    try {
+      const today     = new Date()
+      const days      = []
+      const targetKcal = plan.value?.targetKcal ?? 2000
+
+      // Generar los últimos 7 días (incluyendo hoy)
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(today)
+        d.setDate(today.getDate() - i)
+        const year  = d.getFullYear()
+        const month = String(d.getMonth() + 1).padStart(2, '0')
+        const day   = String(d.getDate()).padStart(2, '0')
+        days.push(`${year}-${month}-${day}`)
+      }
+
+      const snapshots = await Promise.all(
+        days.map(dateKey => getDoc(doc(db, 'users', auth.uid, 'nutrition_logs', dateKey)))
+      )
+
+      history.value = days.map((dateKey, idx) => {
+        const snap = snapshots[idx]
+        if (!snap.exists()) {
+          return { date: dateKey, kcal: 0, target_kcal: targetKcal, protein: 0, carbs: 0, fat: 0, meals: [], empty: true }
+        }
+        const data  = snap.data()
+        const meals = data.meals || []
+        let kcal = 0, protein = 0, carbs = 0, fat = 0
+        meals.forEach(meal => {
+          ;(meal.foods || []).forEach(f => {
+            kcal    += f.kcal    || 0
+            protein += f.protein || 0
+            carbs   += f.carbs   || 0
+            fat     += f.fat     || 0
+          })
+        })
+        return {
+          date:        dateKey,
+          kcal:        Math.round(kcal),
+          target_kcal: data.target_kcal ?? targetKcal,
+          protein:     Math.round(protein),
+          carbs:       Math.round(carbs),
+          fat:         Math.round(fat),
+          water_ml:    data.water_ml ?? 0,
+          meals,
+          empty:       false,
+        }
+      })
+    } catch (e) {
+      console.warn('[nutrition] No se pudo cargar el historial:', e)
+    }
+  }
+
   return {
     dayLog, plan, targets, loading, consumed, percentages,
+    dietPlan, history,
     loadDayLog, addFood, removeFood, logWater,
+    saveDietPlan, loadDietPlan, loadHistory,
   }
 })

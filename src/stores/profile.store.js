@@ -1,8 +1,10 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore'
+import { doc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '@/firebase/config'
 import { useAuthStore } from './auth.store'
+import { toDateKey } from '@/utils/formatters'
+import { useToast } from '@/composables/useToast'
 
 export const useProfileStore = defineStore('profile', () => {
   const saving = ref(false)
@@ -44,5 +46,23 @@ export const useProfileStore = defineStore('profile', () => {
     if (saved) applyThemeColor(saved)
   }
 
-  return { saving, nutritionPlan, updateProfile, completeOnboarding, saveThemeColor, initTheme }
+  async function saveWeight(weightKg) {
+    const auth = useAuthStore()
+    if (!auth.uid || !weightKg || weightKg <= 0) return
+    saving.value = true
+    try {
+      const dateKey = toDateKey()
+      await setDoc(
+        doc(db, 'users', auth.uid, 'weight_logs', dateKey),
+        { date: dateKey, weight_kg: weightKg, recorded_at: serverTimestamp() }
+      )
+      await updateProfile({ 'biometrics.weight_kg': weightKg })
+      const { toast } = useToast()
+      toast.success(`Peso registrado: ${weightKg} kg`)
+    } finally {
+      saving.value = false
+    }
+  }
+
+  return { saving, nutritionPlan, updateProfile, completeOnboarding, saveThemeColor, initTheme, saveWeight }
 })

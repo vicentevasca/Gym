@@ -4,6 +4,7 @@ import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore'
 import { db }               from '@/firebase/config'
 import { useAuthStore }     from '@/stores/auth.store'
 import { usePointsStore }   from '@/stores/points.store'
+import { useRankingStore }  from '@/stores/ranking.store'
 import { staggerIn }        from '@/composables/useAnimations'
 import AppHeader            from '@/components/ui/AppHeader.vue'
 import BottomNav            from '@/components/ui/BottomNav.vue'
@@ -11,36 +12,119 @@ import ProgressChart        from '@/components/progress/ProgressChart.vue'
 import DailyClose           from '@/components/progress/DailyClose.vue'
 import VerseLibrary         from '@/components/verse/VerseLibrary.vue'
 
-const auth   = useAuthStore()
-const points = usePointsStore()
+const auth    = useAuthStore()
+const points  = usePointsStore()
+const ranking = useRankingStore()
 
-const activeTab   = ref('progress')
-const volumeData  = ref([])
-const weightData  = ref([])
-const loading     = ref(true)
+const activeTab      = ref('progress')
+const volumeData     = ref([])
+const weightData     = ref([])
+const sessionHistory = ref([])
+const loading        = ref(true)
+const historyExpanded = ref({})
 
 const tabs = [
-  { id: 'progress', label: 'Progreso' },
-  { id: 'close',    label: 'Cierre' },
-  { id: 'versos',   label: 'Versos' },
+  { id: 'progress',  label: 'Progreso' },
+  { id: 'historial', label: 'Historial' },
+  { id: 'close',     label: 'Cierre' },
+  { id: 'versos',    label: 'Versos' },
 ]
+
+// Mapa de traducción de razones de puntos
+const REASON_LABELS = {
+  set_complete:       'Serie completada',
+  exercise_complete:  'Ejercicio completo',
+  session_complete:   'Sesión terminada',
+  session_full_bonus: '¡Multiplicador ×1.5!',
+  nutrition_logged:   'Nutrición registrada',
+  water_goal:         'Meta de agua',
+  daily_close:        'Cierre del día',
+  new_record:         'Récord personal 🎉',
+  streak_7:           'Racha de 7 días 🔥',
+  streak_30:          'Racha de 30 días 🔥',
+  challenge_complete: 'Reto completado',
+  días_sin_entrenar:  'Decaimiento (inactividad)',
+}
+function reasonLabel(r) { return REASON_LABELS[r] || r }
 
 onMounted(async () => {
   await Promise.all([
     loadVolumeHistory(),
+    loadWeightHistory(),
+    loadSessionHistory(),
     points.subscribe(),
+    ranking.load(),
   ])
   loading.value = false
   staggerIn('.prog-section', { delay: 0.15 })
 })
 
+// Ruta corregida: training_logs (no 'sessions')
 async function loadVolumeHistory() {
   if (!auth.uid) return
-  const q    = query(collection(db, 'users', auth.uid, 'sessions'), orderBy('created_at', 'desc'), limit(14))
-  const snap = await getDocs(q)
-  const raw  = snap.docs.map(d => ({ date: d.id, value: d.data().total_volume ?? 0 })).reverse()
-  volumeData.value = raw.filter(d => d.value > 0)
+  try {
+    const q    = query(
+      collection(db, 'users', auth.uid, 'training_logs'),
+      orderBy('date', 'desc'),
+      limit(14)
+    )
+    const snap = await getDocs(q)
+    const raw  = snap.docs
+      .map(d => ({ date: d.id, value: d.data().volume_total_kg ?? 0 }))
+      .reverse()
+    volumeData.value = raw.filter(d => d.value > 0)
+  } catch (e) {
+    console.warn('[progress] No se pudo cargar historial de volumen:', e)
+  }
 }
+
+async function loadWeightHistory() {
+  if (!auth.uid) return
+  try {
+    const q    = query(
+      collection(db, 'users', auth.uid, 'weight_logs'),
+      orderBy('date', 'asc'),
+      limit(30)
+    )
+    const snap = await getDocs(q)
+    weightData.value = snap.docs.map(d => ({
+      date:  d.id,
+      value: d.data().weight_kg ?? 0,
+    })).filter(d => d.value > 0)
+  } catch (e) {
+    console.warn('[progress] No se pudo cargar historial de peso:', e)
+  }
+}
+
+async function loadSessionHistory() {
+  if (!auth.uid) return
+  try {
+    const q    = query(
+      collection(db, 'users', auth.uid, 'training_logs'),
+      orderBy('date', 'desc'),
+      limit(30)
+    )
+    const snap = await getDocs(q)
+    sessionHistory.value = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(s => s.status === 'completed')
+  } catch (e) {
+    console.warn('[progress] No se pudo cargar historial de sesiones:', e)
+  }
+}
+
+function toggleSession(id) {
+  historyExpanded.value[id] = !historyExpanded.value[id]
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return ''
+  const [y, m, d] = dateStr.split('-')
+  const date = new Date(Number(y), Number(m) - 1, Number(d))
+  return date.toLocaleDateString('es', { weekday: 'short', day: 'numeric', month: 'short' })
+}
+
+const hasProgressData = computed(() => volumeData.value.length > 0 || weightData.value.length > 0)
 </script>
 
 <template>
@@ -61,35 +145,31 @@ async function loadVolumeHistory() {
         </button>
       </div>
 
-      <!-- Progress tab -->
+      <!-- ═══ TAB: PROGRESO ═══════════════════════════════════════ -->
       <div v-if="activeTab === 'progress'">
         <div v-if="loading" class="loading-state">
           <div class="spinner" /> <p>Cargando…</p>
         </div>
         <template v-else>
-          <!-- Points summary -->
-          <section class="card prog-section points-card">
-            <div class="points-row">
-              <div class="points-info">
-                <p class="label-caps points-label">Balance de puntos</p>
-                <p class="points-val">{{ points.balance }}</p>
-              </div>
-              <svg width="36" height="36" viewBox="0 0 24 24" fill="var(--accent)"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg>
-            </div>
 
-            <!-- Recent transactions -->
-            <div v-if="points.log?.length" class="tx-list">
-              <div v-for="tx in points.log.slice(0, 5)" :key="tx.id" class="tx-row">
-                <span class="tx-reason">{{ tx.reason }}</span>
-                <span class="tx-amount" :class="tx.amount > 0 ? 'pos' : 'neg'">
-                  {{ tx.amount > 0 ? '+' : '' }}{{ tx.amount }}
-                </span>
-              </div>
+          <!-- Stats rápidas -->
+          <section class="stats-row prog-section">
+            <div class="stat-item card-sm">
+              <p class="stat-val accent">{{ ranking.streak }}</p>
+              <p class="stat-lbl">Racha</p>
+            </div>
+            <div class="stat-item card-sm">
+              <p class="stat-val">{{ ranking.xp }}</p>
+              <p class="stat-lbl">XP total</p>
+            </div>
+            <div class="stat-item card-sm">
+              <p class="stat-val accent">{{ points.balance }}</p>
+              <p class="stat-lbl">Puntos</p>
             </div>
           </section>
 
           <!-- Volume chart -->
-          <section class="card prog-section">
+          <section v-if="volumeData.length" class="card prog-section">
             <ProgressChart
               :data="volumeData"
               label="Volumen semanal"
@@ -99,7 +179,7 @@ async function loadVolumeHistory() {
           </section>
 
           <!-- Weight chart -->
-          <section class="card prog-section" v-if="weightData.length">
+          <section v-if="weightData.length" class="card prog-section">
             <ProgressChart
               :data="weightData"
               label="Peso corporal"
@@ -108,18 +188,98 @@ async function loadVolumeHistory() {
             />
           </section>
 
-          <p v-if="!volumeData.length && !weightData.length" class="empty-charts">
-            Completa sesiones de entrenamiento para ver tus gráficas de progreso.
-          </p>
+          <!-- Empty state -->
+          <div v-if="!hasProgressData" class="empty-state prog-section">
+            <div class="empty-icon">📊</div>
+            <p class="empty-title">Sin datos de progreso aún</p>
+            <p class="empty-sub">Completa sesiones de entrenamiento y registra tu peso para ver tus gráficas aquí.</p>
+          </div>
+
+          <!-- Puntos recientes -->
+          <section v-if="points.log?.length" class="card prog-section points-card">
+            <p class="label-caps" style="margin-bottom: var(--space-3)">Puntos recientes</p>
+            <div class="tx-list">
+              <div v-for="tx in points.log.slice(0, 6)" :key="tx.id" class="tx-row">
+                <div class="tx-icon" :class="tx.amount > 0 ? 'earn' : 'lose'">
+                  {{ tx.amount > 0 ? '▲' : '▼' }}
+                </div>
+                <span class="tx-reason">{{ reasonLabel(tx.reason) }}</span>
+                <span class="tx-amount" :class="tx.amount > 0 ? 'pos' : 'neg'">
+                  {{ tx.amount > 0 ? '+' : '' }}{{ tx.amount }}
+                </span>
+              </div>
+            </div>
+          </section>
+
         </template>
       </div>
 
-      <!-- Daily close tab -->
+      <!-- ═══ TAB: HISTORIAL ══════════════════════════════════════ -->
+      <div v-else-if="activeTab === 'historial'">
+        <div v-if="loading" class="loading-state">
+          <div class="spinner" /> <p>Cargando historial…</p>
+        </div>
+        <template v-else>
+
+          <div v-if="sessionHistory.length === 0" class="empty-state">
+            <div class="empty-icon">🏋️</div>
+            <p class="empty-title">Sin sesiones completadas</p>
+            <p class="empty-sub">Aquí verás el historial de cada entrenamiento que completes.</p>
+          </div>
+
+          <div v-else class="history-list">
+            <div
+              v-for="session in sessionHistory"
+              :key="session.id"
+              class="session-item card-sm"
+            >
+              <!-- Header de sesión -->
+              <button class="session-row" @click="toggleSession(session.id)">
+                <div class="session-main">
+                  <p class="session-date">{{ formatDate(session.date || session.id) }}</p>
+                  <p class="session-name">{{ session.name || session.label || 'Sesión' }}</p>
+                </div>
+                <div class="session-badges">
+                  <span v-if="session.volume_total_kg" class="badge-sm vol">
+                    {{ session.volume_total_kg }} kg
+                  </span>
+                  <span v-if="session.duration_min" class="badge-sm dur">
+                    {{ session.duration_min }} min
+                  </span>
+                  <span class="session-chevron" :class="{ open: historyExpanded[session.id] }">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>
+                  </span>
+                </div>
+              </button>
+
+              <!-- Detalle expandido -->
+              <div v-if="historyExpanded[session.id]" class="session-detail">
+                <div
+                  v-for="ex in (session.exercises || [])"
+                  :key="ex.exercise_id"
+                  class="ex-row"
+                  :class="{ completed: ex.completed }"
+                >
+                  <span class="ex-check">{{ ex.completed ? '✓' : '○' }}</span>
+                  <span class="ex-name">{{ ex.name }}</span>
+                  <span v-if="ex.completed && ex.sets?.length" class="ex-sets">
+                    {{ ex.sets.filter(s => s.completed).length }}/{{ ex.sets.length }} series
+                  </span>
+                  <span v-if="session.new_records?.includes(ex.exercise_id)" class="pr-flag">PR</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </template>
+      </div>
+
+      <!-- ═══ TAB: CIERRE ═════════════════════════════════════════ -->
       <div v-else-if="activeTab === 'close'">
         <DailyClose class="prog-section" @done="activeTab = 'progress'" />
       </div>
 
-      <!-- Verse library tab -->
+      <!-- ═══ TAB: VERSOS ═════════════════════════════════════════ -->
       <div v-else-if="activeTab === 'versos'">
         <VerseLibrary />
       </div>
@@ -130,40 +290,118 @@ async function loadVolumeHistory() {
 </template>
 
 <style scoped>
-.page-pad { padding: var(--space-5) var(--space-4) var(--space-12); }
+.page-pad { padding-left: var(--space-4); padding-right: var(--space-4); }
 
+/* ── Tab bar ────────────────────────────────────────────── */
 .tab-bar {
-  display: flex; gap: var(--space-2);
-  background: var(--surface); border-radius: var(--radius-lg);
-  padding: var(--space-1); margin-bottom: var(--space-5);
+  display: flex;
+  background: var(--faint);
+  border-radius: var(--radius-lg);
+  padding: 3px;
+  margin-bottom: var(--space-5);
+  gap: 2px;
+  overflow: hidden;
 }
 .tab-btn {
-  flex: 1; padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius); border: none;
+  flex: 1; padding: var(--space-2) 4px;
+  border-radius: var(--radius);
+  border: none;
   background: transparent; color: var(--muted);
-  font-size: var(--text-sm); font-weight: 600;
+  font-size: var(--text-xs); font-weight: 600;
   cursor: pointer; transition: var(--transition);
+  white-space: nowrap;
 }
 .tab-btn.active { background: var(--card); color: var(--text); box-shadow: var(--shadow-sm); }
 
+/* ── Loading / empty ────────────────────────────────────── */
 .loading-state {
   display: flex; align-items: center; justify-content: center;
   min-height: 40vh; gap: var(--space-4); color: var(--muted);
 }
+.empty-state {
+  display: flex; flex-direction: column; align-items: center;
+  text-align: center; padding: var(--space-10) var(--space-4); gap: var(--space-3);
+}
+.empty-icon { font-size: 48px; line-height: 1; }
+.empty-title { font-size: var(--text-lg); font-weight: 700; color: var(--text); }
+.empty-sub { font-size: var(--text-sm); color: var(--muted); line-height: 1.6; max-width: 280px; }
 
+/* ── Sección general ────────────────────────────────────── */
 .prog-section { margin-bottom: var(--space-4); }
 
-.points-card { padding: var(--space-5); }
-.points-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4); }
-.points-label { color: var(--muted); margin-bottom: var(--space-1); }
-.points-val { font-size: var(--text-3xl); font-weight: 800; font-family: var(--font-mono); color: var(--accent); }
+/* ── Stats row ──────────────────────────────────────────── */
+.stats-row {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-3); margin-bottom: var(--space-4);
+}
+.stat-item { text-align: center; padding: var(--space-4) var(--space-2); }
+.stat-val {
+  font-family: var(--font-mono); font-size: var(--text-xl);
+  font-weight: 800; color: var(--text); line-height: 1;
+}
+.stat-val.accent { color: var(--accent); }
+.stat-lbl { font-size: 10px; color: var(--muted); margin-top: var(--space-1); text-transform: uppercase; letter-spacing: 0.08em; }
 
-.tx-list { display: flex; flex-direction: column; gap: var(--space-2); }
-.tx-row { display: flex; justify-content: space-between; align-items: center; padding: var(--space-2) 0; border-top: 1px solid var(--faint); }
-.tx-reason { font-size: var(--text-sm); color: var(--muted); }
-.tx-amount { font-size: var(--text-sm); font-weight: 700; font-family: var(--font-mono); }
+/* ── Points card ────────────────────────────────────────── */
+.points-card { padding: var(--space-5); }
+.tx-list { display: flex; flex-direction: column; gap: 1px; }
+.tx-row {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--faint);
+}
+.tx-row:last-child { border-bottom: none; }
+.tx-icon {
+  width: 24px; height: 24px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; flex-shrink: 0;
+}
+.tx-icon.earn { background: color-mix(in srgb, var(--success) 15%, transparent); color: var(--success); }
+.tx-icon.lose { background: color-mix(in srgb, var(--danger) 15%, transparent); color: var(--danger); }
+.tx-reason { flex: 1; font-size: var(--text-sm); color: var(--text); }
+.tx-amount { font-size: var(--text-sm); font-weight: 700; font-family: var(--font-mono); flex-shrink: 0; }
 .tx-amount.pos { color: var(--success); }
 .tx-amount.neg { color: var(--danger); }
 
-.empty-charts { text-align: center; color: var(--muted); font-size: var(--text-sm); line-height: 1.7; padding: var(--space-8) 0; }
+/* ── Session history ────────────────────────────────────── */
+.history-list { display: flex; flex-direction: column; gap: var(--space-3); }
+.session-item { overflow: hidden; }
+.session-row {
+  display: flex; align-items: center; justify-content: space-between;
+  width: 100%; background: none; border: none; color: var(--text);
+  padding: var(--space-3) var(--space-4); cursor: pointer; text-align: left;
+  gap: var(--space-3);
+}
+.session-main { flex: 1; min-width: 0; }
+.session-date { font-size: var(--text-xs); color: var(--muted); text-transform: capitalize; }
+.session-name { font-size: var(--text-sm); font-weight: 700; margin-top: 2px; }
+.session-badges { display: flex; align-items: center; gap: var(--space-2); flex-shrink: 0; }
+.badge-sm {
+  font-size: 11px; font-weight: 700; font-family: var(--font-mono);
+  padding: 2px 8px; border-radius: var(--radius-full);
+}
+.badge-sm.vol { background: var(--accent-dim); color: var(--accent); }
+.badge-sm.dur { background: var(--faint); color: var(--muted); }
+.session-chevron { color: var(--muted); transition: transform 0.2s; display: flex; }
+.session-chevron.open { transform: rotate(180deg); }
+
+.session-detail {
+  padding: var(--space-2) var(--space-4) var(--space-3);
+  border-top: 1px solid var(--faint);
+  display: flex; flex-direction: column; gap: var(--space-1);
+}
+.ex-row {
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: 4px 0; opacity: 0.5;
+}
+.ex-row.completed { opacity: 1; }
+.ex-check { font-size: 11px; color: var(--muted); width: 14px; flex-shrink: 0; }
+.ex-row.completed .ex-check { color: var(--success); }
+.ex-name { flex: 1; font-size: var(--text-sm); }
+.ex-sets { font-size: 11px; color: var(--muted); font-family: var(--font-mono); }
+.pr-flag {
+  font-size: 10px; font-weight: 800; background: var(--warning-dim);
+  color: var(--warning); padding: 1px 6px; border-radius: var(--radius-full);
+  letter-spacing: 0.05em;
+}
 </style>

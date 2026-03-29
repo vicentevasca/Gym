@@ -1,9 +1,13 @@
 <script setup>
 import { onMounted } from 'vue'
-import { useAuthStore } from '@/stores/auth.store'
-import { useTheme } from '@/composables/useTheme'
+import { useAuthStore }    from '@/stores/auth.store'
+import { useRankingStore } from '@/stores/ranking.store'
+import { useTheme }        from '@/composables/useTheme'
+import LevelUpModal        from '@/components/rewards/LevelUpModal.vue'
+import ToastContainer      from '@/components/ui/ToastContainer.vue'
 
-const auth  = useAuthStore()
+const auth    = useAuthStore()
+const ranking = useRankingStore()
 const { mode } = useTheme()
 
 onMounted(async () => {
@@ -22,5 +26,11 @@ onMounted(async () => {
         <component :is="Component" :key="$route.path" />
       </Transition>
     </RouterView>
+
+    <!-- Modal global de nivel: se muestra desde cualquier vista -->
+    <LevelUpModal v-if="ranking.justLeveledUp" @close="ranking.clearLevelUp()" />
+
+    <!-- Toasts globales -->
+    <ToastContainer />
   </div>
 </template>
