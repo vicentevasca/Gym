@@ -5,7 +5,8 @@ import {
   runTransaction, collection, addDoc, getDocs, orderBy, query, limit, serverTimestamp,
 } from 'firebase/firestore'
 import { db } from '@/firebase/config'
-import { useAuthStore } from './auth.store'
+import { useAuthStore }   from './auth.store'
+import { useRankingStore } from './ranking.store'
 import { toDateKey } from '@/utils/formatters'
 
 const POINTS_CONFIG = {
@@ -83,10 +84,10 @@ export const usePointsStore = defineStore('points', () => {
       const newBal  = current + amount
 
       tx.set(balRef, {
-        balance:       newBal,
-        total_earned:  (snap.data()?.total_earned || 0) + amount,
+        balance:        newBal,
+        total_earned:   (snap.data()?.total_earned || 0) + amount,
         total_redeemed: snap.data()?.total_redeemed || 0,
-        last_updated:  serverTimestamp(),
+        last_updated:   serverTimestamp(),
       })
 
       await addDoc(histRef, {
@@ -97,6 +98,11 @@ export const usePointsStore = defineStore('points', () => {
         timestamp:     serverTimestamp(),
       })
     })
+
+    // Cada punto ganado también avanza el XP de rango (XP nunca decrece).
+    // La importación es lazy para evitar circularidad en módulos.
+    const ranking = useRankingStore()
+    await ranking.addXP(amount)
   }
 
   // ── Canjear recompensa ─────────────────────────────────

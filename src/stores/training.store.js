@@ -150,6 +150,10 @@ export const useTrainingStore = defineStore('training', () => {
       const exName = session.value?.exercises?.find(e => e.exercise_id === exerciseId)?.name || exerciseId
       const { toast } = useToast()
       toast.pr(exName)
+      // Puntos por nuevo récord personal (+50)
+      const pts = usePointsStore()
+      await pts.earnPoints('new_record')
+      sessionPointsEarned.value += 50  // también suma al XP de la sesión
       return true
     }
     return false
@@ -237,17 +241,24 @@ export const useTrainingStore = defineStore('training', () => {
     const ranking = useRankingStore()
 
     const completedExercises = session.value?.exercises?.filter(e => e.completed).length || 0
-    const allComplete  = completedExercises >= (session.value?.exercises?.length || 0)
-    const sessionPts   = sessionPointsEarned.value
-    const earnedTotal  = await pts.earnSessionComplete(sessionPts, allComplete)
+    const allComplete = completedExercises >= (session.value?.exercises?.length || 0)
+    const sessionPts  = sessionPointsEarned.value   // sets + ejercicios + PRs ya acumulados
 
-    // Decaimiento pendiente (días sin entrenar)
+    // earnSessionComplete llama earnPoints internamente → addXP se dispara automáticamente
+    await pts.earnSessionComplete(sessionPts, allComplete)
+
+    // Decaimiento pendiente (días sin entrenar) — NO afecta XP
     const decayAmt = ranking.consumeDecay?.() || 0
     if (decayAmt > 0) await pts.applyDecay?.(decayAmt)
 
-    // Registrar en ranking: XP = sessionPts + earnedTotal (session bonus)
-    const totalXP = sessionPts + (allComplete ? Math.round(sessionPts * 0.5) : 0) + earnedTotal
-    await ranking.recordTraining(totalXP, Math.round(totalVolume))
+    // recordTraining ya NO recibe xpEarned — solo actualiza racha y marcas
+    await ranking.recordTraining(Math.round(totalVolume))
+
+    // Total de puntos ganados en esta sesión (para mostrar en SessionComplete)
+    const fullBonus = allComplete && sessionPts > 0 ? Math.round(sessionPts * 0.5) : 0
+    const sessionDisplayXP = sessionPts + fullBonus + 50   // 50 = session_complete
+    await updateDoc(logRef, { pointsEarned: sessionDisplayXP })
+    session.value = { ...session.value, pointsEarned: sessionDisplayXP }
 
     sessionPointsEarned.value = 0  // reset para la próxima sesión
 

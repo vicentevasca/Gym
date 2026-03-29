@@ -22,15 +22,13 @@ export const useAuthStore = defineStore('auth', () => {
   const uid                 = computed(() => user.value?.uid ?? null)
   const alias               = computed(() => profile.value?.alias || user.value?.displayName || 'Tú')
 
-  let _initialized = false
+  let _initPromise = null
 
-  // Inicializa listener de auth — llamar UNA sola vez en App.vue
-  // Mantiene el listener activo toda la sesión
+  // Inicializa listener de auth — llamar UNA sola vez en App.vue y en el router guard.
+  // Devuelve siempre la misma Promise para que múltiples awaits esperen la misma resolución.
   function init() {
-    if (_initialized) return Promise.resolve()
-    _initialized = true
-
-    return new Promise((resolve) => {
+    if (_initPromise) return _initPromise
+    _initPromise = new Promise((resolve) => {
       onAuthChange(async (firebaseUser) => {
         user.value = firebaseUser
         if (firebaseUser) {
@@ -42,6 +40,7 @@ export const useAuthStore = defineStore('auth', () => {
         resolve()
       })
     })
+    return _initPromise
   }
 
   async function loadProfile(userId) {
@@ -75,9 +74,12 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function signOut() {
-    await logout()
-    user.value = null
+    await logout()        // Firebase elimina el token de localStorage
+    user.value    = null
     profile.value = null
+    // Resetear la promesa para que un nuevo login pueda reinicializar el listener
+    _initPromise  = null
+    loading.value = true
   }
 
   async function forgotPassword(email) {

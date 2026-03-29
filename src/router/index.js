@@ -88,10 +88,9 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   const auth = useAuthStore()
 
-  // Esperar a que Firebase resuelva el estado de auth
-  if (auth.loading) {
-    await auth.init()
-  }
+  // Siempre esperar la misma promesa de init — garantiza que Firebase
+  // restauró el token guardado antes de evaluar permisos
+  await auth.init()
 
   const requiresAuth       = to.meta.requiresAuth
   const requiresOnboarding = to.meta.requiresOnboarding

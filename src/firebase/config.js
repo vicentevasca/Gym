@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app'
-import { getAuth } from 'firebase/auth'
+import { getAuth, browserLocalPersistence, setPersistence } from 'firebase/auth'
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore'
 
 const firebaseConfig = {
@@ -15,6 +15,8 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig)
 
 export const auth = getAuth(app)
+// Persistir sesión en localStorage — sobrevive recargas y actualizaciones de la PWA
+setPersistence(auth, browserLocalPersistence).catch(console.error)
 
 // Firestore con persistencia offline (multi-tab)
 export const db = initializeFirestore(app, {

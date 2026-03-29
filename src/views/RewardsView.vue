@@ -125,6 +125,8 @@ function reasonLabel(r) {
         <!-- Cómo ganar XP -->
         <section class="card xp-guide tab-section">
           <p class="card-label label-caps" style="margin-bottom: var(--space-3)">Cómo ganar XP</p>
+
+          <p class="xp-group-label">Entrenamiento</p>
           <div class="xp-row-item">
             <span class="xp-icon">🏋️</span>
             <span class="xp-text">Por serie completada</span>
@@ -142,15 +144,50 @@ function reasonLabel(r) {
           </div>
           <div class="xp-row-item highlight">
             <span class="xp-icon">⚡</span>
-            <span class="xp-text">¡Todos los ejercicios!</span>
+            <span class="xp-text">¡Todos los ejercicios completos!</span>
             <span class="xp-pts num-sm accent">×1.5</span>
           </div>
-          <div class="xp-row-item xp-decay">
+          <div class="xp-row-item">
+            <span class="xp-icon">🏆</span>
+            <span class="xp-text">Nuevo récord personal (PR)</span>
+            <span class="xp-pts num-sm">+50 XP</span>
+          </div>
+
+          <p class="xp-group-label" style="margin-top: var(--space-3)">Constancia</p>
+          <div class="xp-row-item highlight">
+            <span class="xp-icon">🔥</span>
+            <span class="xp-text">Racha de 7 días seguidos</span>
+            <span class="xp-pts num-sm accent">+150 pts</span>
+          </div>
+          <div class="xp-row-item highlight">
+            <span class="xp-icon">🏅</span>
+            <span class="xp-text">Racha de 30 días seguidos</span>
+            <span class="xp-pts num-sm accent">+500 pts</span>
+          </div>
+
+          <p class="xp-group-label" style="margin-top: var(--space-3)">Hábitos</p>
+          <div class="xp-row-item">
+            <span class="xp-icon">🥗</span>
+            <span class="xp-text">Nutrición registrada</span>
+            <span class="xp-pts num-sm">+30 pts</span>
+          </div>
+          <div class="xp-row-item">
+            <span class="xp-icon">💧</span>
+            <span class="xp-text">Meta de agua alcanzada</span>
+            <span class="xp-pts num-sm">+20 pts</span>
+          </div>
+          <div class="xp-row-item">
+            <span class="xp-icon">🌙</span>
+            <span class="xp-text">Cierre del día</span>
+            <span class="xp-pts num-sm">+25 pts</span>
+          </div>
+
+          <div class="xp-row-item xp-decay" style="margin-top: var(--space-3)">
             <span class="xp-icon">📉</span>
-            <span class="xp-text">Día sin entrenar</span>
+            <span class="xp-text">Día sin entrenar (puntos)</span>
             <span class="xp-pts num-sm decay">−5 pts/día</span>
           </div>
-          <p class="xp-note">El decaimiento aumenta en días consecutivos sin entrenar. El XP de rango nunca decrece.</p>
+          <p class="xp-note">El decaimiento afecta solo los puntos (canjeables). El XP de rango nunca decrece.</p>
         </section>
 
       </template>
@@ -377,6 +414,15 @@ function reasonLabel(r) {
 
 /* XP guide */
 .xp-guide { padding: var(--space-5); }
+.xp-group-label {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  font-family: var(--font-ui);
+  margin-bottom: var(--space-1);
+}
 .xp-row-item {
   display: flex; align-items: center; gap: var(--space-3);
   padding: var(--space-2) 0;

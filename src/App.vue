@@ -1,5 +1,6 @@
 <script setup>
-import { onMounted } from 'vue'
+import { onMounted }       from 'vue'
+import { gsap }            from 'gsap'
 import { useAuthStore }    from '@/stores/auth.store'
 import { useRankingStore } from '@/stores/ranking.store'
 import { useTheme }        from '@/composables/useTheme'
@@ -12,7 +13,32 @@ const { mode } = useTheme()
 
 onMounted(async () => {
   await auth.init()
+  if (auth.isLoggedIn) await ranking.load()
 })
+
+// ── Transiciones de vista con GSAP ────────────────────────────
+function onBeforeEnter(el) {
+  gsap.set(el, { opacity: 0, y: 14 })
+}
+function onEnter(el, done) {
+  gsap.to(el, {
+    opacity: 1,
+    y: 0,
+    duration: 0.26,
+    ease: 'power2.out',
+    clearProps: 'all',
+    onComplete: done,
+  })
+}
+function onLeave(el, done) {
+  gsap.to(el, {
+    opacity: 0,
+    y: -10,
+    duration: 0.16,
+    ease: 'power2.in',
+    onComplete: done,
+  })
+}
 </script>
 
 <template>
@@ -22,15 +48,18 @@ onMounted(async () => {
     :data-mode="mode"
   >
     <RouterView v-slot="{ Component }">
-      <Transition name="page" mode="out-in">
+      <Transition
+        :css="false"
+        mode="out-in"
+        @before-enter="onBeforeEnter"
+        @enter="onEnter"
+        @leave="onLeave"
+      >
         <component :is="Component" :key="$route.path" />
       </Transition>
     </RouterView>
 
-    <!-- Modal global de nivel: se muestra desde cualquier vista -->
     <LevelUpModal v-if="ranking.justLeveledUp" @close="ranking.clearLevelUp()" />
-
-    <!-- Toasts globales -->
     <ToastContainer />
   </div>
 </template>

@@ -1,10 +1,12 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import {
-  doc, getDoc, setDoc, updateDoc, serverTimestamp,
+  doc, getDoc, setDoc, updateDoc, increment, serverTimestamp,
 } from 'firebase/firestore'
 import { db } from '@/firebase/config'
-import { useAuthStore } from './auth.store'
+import { useAuthStore }  from './auth.store'
+import { usePointsStore } from './points.store'
+import { useToast }      from '@/composables/useToast'
 import { toDateKey } from '@/utils/formatters'
 
 // ── 10 niveles ────────────────────────────────────────────────────────────────
@@ -46,6 +48,7 @@ export const useRankingStore = defineStore('ranking', () => {
   const loading       = ref(false)
   const justLeveledUp = ref(null)   // { name, emoji, color } cuando sube nivel
   const pendingDecay  = ref(0)      // puntos a restar del balance esta sesión
+  let   _loaded       = false       // true después del primer load() exitoso
 
   // ── Computeds ────────────────────────────────────────────────────────────────
 
@@ -87,12 +90,42 @@ export const useRankingStore = defineStore('ranking', () => {
       const snap = await getDoc(ref)
       if (snap.exists()) {
         data.value = { ...data.value, ...snap.data() }
+        _loaded = true
         await _checkDecay()
       } else {
         await setDoc(ref, { ...data.value, last_decay_date: toDateKey(), created_at: serverTimestamp() })
+        _loaded = true
       }
     } finally {
       loading.value = false
+    }
+  }
+
+  // ── Sumar XP (invocado desde points.store en cada earnPoints) ─────────────
+  // Usa increment() para actualizar Firestore atómicamente sin leer el valor previo.
+  // De esta forma TODA fuente de puntos (entrenamiento, hábitos, retos, rachas)
+  // progresa el rango, no solo las sesiones completadas.
+
+  async function addXP(amount) {
+    if (!auth.uid || amount <= 0) return
+
+    const prevLvlIdx = _loaded ? currentLevel.value.index : -1
+
+    // Actualización atómica en Firestore
+    await updateDoc(doc(db, 'users', auth.uid, 'ranking', 'data'), {
+      xp: increment(amount),
+    })
+
+    // Reflejo en memoria
+    data.value = { ...data.value, xp: (data.value.xp || 0) + amount }
+
+    // Detectar subida de nivel (solo si ya tenemos datos en memoria)
+    if (_loaded) {
+      const newLvlIdx = currentLevel.value.index
+      if (newLvlIdx > prevLvlIdx) {
+        justLeveledUp.value = LEVELS[newLvlIdx]
+        setTimeout(() => { justLeveledUp.value = null }, 10000)
+      }
     }
   }
 
@@ -135,11 +168,12 @@ export const useRankingStore = defineStore('ranking', () => {
   }
 
   // ── Registrar entrenamiento completado ────────────────────────────────────
+  // Ya NO suma XP aquí — addXP() se encarga vía earnPoints() en points.store.
+  // Solo actualiza racha, last_trained y marcas personales.
 
-  async function recordTraining(xpEarned, sessionVolume = 0) {
+  async function recordTraining(sessionVolume = 0) {
     if (!auth.uid) return
-    const today       = toDateKey()
-    const prevLvlIdx  = currentLevel.value.index
+    const today = toDateKey()
 
     const lastTrained = data.value.last_trained
     const yesterday   = (() => {
@@ -149,7 +183,6 @@ export const useRankingStore = defineStore('ranking', () => {
     const wasConsecutive = lastTrained === yesterday || lastTrained === today
 
     const newStreak = wasConsecutive ? (data.value.streak || 0) + 1 : 1
-    const newXP     = (data.value.xp || 0) + xpEarned
 
     // Personal bests
     const pb = { ...(data.value.personal_bests || {}) }
@@ -162,7 +195,6 @@ export const useRankingStore = defineStore('ranking', () => {
     }
 
     await updateDoc(doc(db, 'users', auth.uid, 'ranking', 'data'), {
-      xp:             newXP,
       streak:         newStreak,
       last_trained:   today,
       missed_days:    0,
@@ -170,13 +202,17 @@ export const useRankingStore = defineStore('ranking', () => {
       last_updated:   serverTimestamp(),
     })
 
-    data.value = { ...data.value, xp: newXP, streak: newStreak, last_trained: today, missed_days: 0, personal_bests: pb }
+    data.value = { ...data.value, streak: newStreak, last_trained: today, missed_days: 0, personal_bests: pb }
 
-    // Detectar subida de nivel
-    const newLvlIdx = currentLevel.value.index
-    if (newLvlIdx > prevLvlIdx) {
-      justLeveledUp.value = LEVELS[newLvlIdx]
-      setTimeout(() => { justLeveledUp.value = null }, 10000)
+    // Milestones de racha — earnPoints llama addXP automáticamente
+    const pts       = usePointsStore()
+    const { toast } = useToast()
+    if (newStreak === 7) {
+      await pts.earnPoints('streak_7')   // +150 pts → también +150 XP vía addXP
+      toast.show({ message: '¡7 días de racha! +150 pts 🔥', type: 'success', icon: '🔥', duration: 5000 })
+    } else if (newStreak === 30) {
+      await pts.earnPoints('streak_30')  // +500 pts → también +500 XP vía addXP
+      toast.show({ message: '¡30 días de racha! +500 pts 🏆', type: 'success', icon: '🏆', duration: 6000 })
     }
   }
 
@@ -187,6 +223,6 @@ export const useRankingStore = defineStore('ranking', () => {
     data, loading, justLeveledUp, pendingDecay,
     xp, streak, bests,
     currentLevel, nextLevel, levelProgress, pointsToNext,
-    load, recordTraining, clearLevelUp, consumeDecay,
+    load, addXP, recordTraining, clearLevelUp, consumeDecay,
   }
 })

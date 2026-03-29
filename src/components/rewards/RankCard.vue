@@ -1,10 +1,17 @@
 <script setup>
-import { computed } from 'vue'
-import { useRankingStore, LEVELS } from '@/stores/ranking.store'
-import { usePointsStore }          from '@/stores/points.store'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { gsap }                                      from 'gsap'
+import { useRankingStore, LEVELS }                   from '@/stores/ranking.store'
+import { usePointsStore }                            from '@/stores/points.store'
+import { useShareCard }                              from '@/composables/useShareCard'
 
 const ranking = useRankingStore()
 const points  = usePointsStore()
+const { shareRank } = useShareCard()
+
+const sharing    = ref(false)
+const ringArcEl  = ref(null)
+const xpFillEl   = ref(null)
 
 // SVG ring params
 const R      = 44
@@ -16,6 +23,68 @@ const dashOffset = computed(() =>
 
 function formatNum(n) {
   return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n)
+}
+
+// ── GSAP: animar ring y barra al montar ───────────────────────
+onMounted(() => {
+  nextTick(() => {
+    const arc  = ringArcEl.value
+    const fill = xpFillEl.value
+    if (!arc || !fill) return
+
+    const tl = gsap.timeline({ defaults: { ease: 'power3.out' } })
+
+    // Ring: stroke-dashoffset desde CIRCUM (0%) hasta el valor real
+    tl.fromTo(arc,
+      { strokeDashoffset: CIRCUM },
+      { strokeDashoffset: dashOffset.value, duration: 1.3, delay: 0.15 }
+    )
+
+    // Barra XP: desde 0 hasta el porcentaje real
+    tl.fromTo(fill,
+      { width: '0%' },
+      { width: Math.max(ranking.levelProgress, 0) + '%', duration: 1.1 },
+      '-=1.0'
+    )
+
+    // Pulse de ondeo continuo en el arco
+    gsap.to(arc, {
+      opacity: 0.72,
+      duration: 2.2,
+      ease: 'sine.inOut',
+      repeat: -1,
+      yoyo: true,
+      delay: 1.5,
+    })
+  })
+})
+
+// ── GSAP: reanimar cuando cambia el progreso (XP ganado en vivo) ─
+watch(() => ranking.levelProgress, (newVal) => {
+  if (ringArcEl.value) {
+    gsap.to(ringArcEl.value, {
+      strokeDashoffset: dashOffset.value,
+      duration: 0.9,
+      ease: 'power2.out',
+    })
+  }
+  if (xpFillEl.value) {
+    gsap.to(xpFillEl.value, {
+      width: Math.max(newVal, 0) + '%',
+      duration: 0.9,
+      ease: 'power2.out',
+    })
+  }
+})
+
+async function handleShareRank() {
+  if (sharing.value) return
+  sharing.value = true
+  try {
+    await shareRank({ ranking, streak: ranking.streak })
+  } finally {
+    sharing.value = false
+  }
 }
 </script>
 
@@ -35,15 +104,16 @@ function formatNum(n) {
             stroke="var(--faint)"
             stroke-width="7"
           />
-          <!-- Progress arc -->
+          <!-- Progress arc — GSAP controla stroke-dashoffset -->
           <circle
+            ref="ringArcEl"
             cx="50" cy="50" :r="R"
             fill="none"
             :stroke="ranking.currentLevel.color"
             stroke-width="7"
             stroke-linecap="round"
             :stroke-dasharray="CIRCUM"
-            :stroke-dashoffset="dashOffset"
+            :stroke-dashoffset="CIRCUM"
             transform="rotate(-90 50 50)"
             class="ring-arc"
           />
@@ -64,13 +134,13 @@ function formatNum(n) {
           {{ ranking.currentLevel.name }}
         </h3>
         <p v-if="ranking.nextLevel" class="rank-next">
-          Nivel {{ ranking.nextLevel.index + 1 }}: {{ ranking.nextLevel.name }}
+          Siguiente: {{ ranking.nextLevel.name }}
         </p>
         <p v-else class="rank-next rank-max">¡Rango máximo alcanzado!</p>
       </div>
     </div>
 
-    <!-- XP bar details -->
+    <!-- XP bar -->
     <div class="xp-row">
       <span class="xp-label label-caps">XP Total</span>
       <span class="xp-val num-sm" :style="{ color: ranking.currentLevel.color }">
@@ -81,13 +151,12 @@ function formatNum(n) {
       </span>
     </div>
 
+    <!-- Barra con shimmer wave -->
     <div class="xp-track">
       <div
+        ref="xpFillEl"
         class="xp-fill"
-        :style="{
-          width: ranking.levelProgress + '%',
-          background: ranking.currentLevel.color,
-        }"
+        :style="{ background: ranking.currentLevel.color }"
       />
     </div>
 
@@ -130,7 +199,7 @@ function formatNum(n) {
       </div>
     </div>
 
-    <!-- Level names mini-labels (show adjacent) -->
+    <!-- Level labels -->
     <div class="lvl-labels">
       <span class="lvl-label-cur" :style="{ color: ranking.currentLevel.color }">
         {{ ranking.currentLevel.name }}
@@ -139,6 +208,13 @@ function formatNum(n) {
         → {{ ranking.nextLevel.name }}
       </span>
     </div>
+
+    <!-- Share button -->
+    <button class="share-rank-btn" :disabled="sharing" @click="handleShareRank">
+      <svg v-if="!sharing" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+      <span v-if="sharing" class="spinner-xs" />
+      {{ sharing ? 'Generando…' : 'Compartir mi rango' }}
+    </button>
 
   </div>
 </template>
@@ -157,11 +233,12 @@ function formatNum(n) {
 /* Ring */
 .ring-wrap {
   position: relative;
-  width: 88px; height: 88px;
+  width: 92px; height: 92px;
   flex-shrink: 0;
 }
 .ring-svg { width: 100%; height: 100%; }
-.ring-arc { transition: stroke-dashoffset 0.8s cubic-bezier(.4,0,.2,1); }
+/* Sin CSS transition en ring-arc — GSAP lo controla */
+.ring-arc { will-change: stroke-dashoffset, opacity; }
 .ring-center {
   position: absolute;
   inset: 0;
@@ -196,18 +273,48 @@ function formatNum(n) {
 .xp-label { flex: 1; }
 .xp-val { font-weight: 700; }
 .xp-next { font-size: var(--text-xs); color: var(--muted); }
+
 .xp-track {
-  height: 5px;
+  height: 8px;
   background: var(--faint);
-  border-radius: 3px;
+  border-radius: 4px;
   overflow: hidden;
   margin-bottom: var(--space-2);
+  position: relative;
 }
+
+/* Fill — GSAP controla width */
 .xp-fill {
   height: 100%;
-  border-radius: 3px;
-  transition: width 0.8s cubic-bezier(.4,0,.2,1);
+  border-radius: 4px;
+  width: 0%;               /* valor inicial; GSAP lo anima */
+  min-width: 0;
+  position: relative;
+  overflow: hidden;
+  will-change: width;
 }
+
+/* Shimmer wave sobre el fill */
+.xp-fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent        0%,
+    rgba(255,255,255,0.30) 45%,
+    rgba(255,255,255,0.08) 65%,
+    transparent        100%
+  );
+  transform: translateX(-100%);
+  animation: xp-shimmer 2.6s ease-in-out infinite;
+}
+@keyframes xp-shimmer {
+  0%   { transform: translateX(-100%); }
+  55%  { transform: translateX(100%); }
+  100% { transform: translateX(100%); }
+}
+
 .xp-hint {
   font-size: var(--text-xs);
   color: var(--muted);
@@ -274,7 +381,27 @@ function formatNum(n) {
   align-items: center;
   gap: var(--space-2);
   font-size: 11px;
+  margin-bottom: var(--space-4);
 }
-.lvl-label-cur { font-weight: 700; font-family: var(--font-display); }
+.lvl-label-cur  { font-weight: 700; font-family: var(--font-display); }
 .lvl-label-next { color: var(--muted); font-family: var(--font-ui); }
+
+/* Share button */
+.share-rank-btn {
+  width: 100%;
+  display: flex; align-items: center; justify-content: center; gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: var(--faint); border: 1.5px solid var(--border);
+  border-radius: var(--radius-lg); color: var(--muted);
+  font-size: var(--text-sm); font-weight: 700;
+  cursor: pointer; transition: var(--transition);
+}
+.share-rank-btn:hover { border-color: var(--accent); color: var(--accent); }
+.share-rank-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.spinner-xs {
+  width: 13px; height: 13px;
+  border: 2px solid var(--border); border-top-color: var(--accent);
+  border-radius: 50%; animation: spin 0.7s linear infinite; display: inline-block;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 </style>

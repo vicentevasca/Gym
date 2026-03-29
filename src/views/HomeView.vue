@@ -185,16 +185,20 @@ const sessionProgress = computed(() => {
     <BottomNav />
 
     <!-- Verse modal -->
-    <VerseScreen v-if="showVerse" @close="showVerse = false" />
+    <Transition name="overlay">
+      <VerseScreen v-if="showVerse" @close="showVerse = false" />
+    </Transition>
 
     <!-- Mood response modal -->
-    <MoodResponseModal
-      v-if="showMoodModal"
-      :mood="lastMoodChecked"
-      :user-name="auth.alias"
-      :streak="ranking.streak"
-      @close="showMoodModal = false"
-    />
+    <Transition name="modal">
+      <MoodResponseModal
+        v-if="showMoodModal"
+        :mood="lastMoodChecked"
+        :user-name="auth.alias"
+        :streak="ranking.streak"
+        @close="showMoodModal = false"
+      />
+    </Transition>
   </div>
 </template>
 

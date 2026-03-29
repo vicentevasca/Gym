@@ -496,29 +496,64 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
 .badge-warning { background: var(--warning-dim); color: var(--warning); }
 
 /* ═══════════════════════════════════════════════
-   PAGE TRANSITIONS (GSAP + Vue)
+   PAGE TRANSITIONS — GSAP JS hooks (App.vue)
+   Las clases .page-* se mantienen como fallback
    ═══════════════════════════════════════════════ */
 
 .page-enter-active,
 .page-leave-active {
-  transition: opacity 0.25s ease, transform 0.25s ease;
+  transition: opacity 0.22s ease, transform 0.22s ease;
 }
-.page-enter-from {
-  opacity: 0;
-  transform: translateY(8px);
-}
-.page-leave-to {
-  opacity: 0;
-  transform: translateY(-8px);
-}
+.page-enter-from { opacity: 0; transform: translateY(12px); }
+.page-leave-to   { opacity: 0; transform: translateY(-8px); }
 
 /* Slide horizontal (onboarding) */
 .slide-enter-active,
 .slide-leave-active {
-  transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: opacity 0.28s ease, transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .slide-enter-from { opacity: 0; transform: translateX(32px); }
 .slide-leave-to   { opacity: 0; transform: translateX(-32px); }
-
 .slide-back-enter-from { opacity: 0; transform: translateX(-32px); }
 .slide-back-leave-to   { opacity: 0; transform: translateX(32px); }
+
+/* ═══════════════════════════════════════════════
+   MODAL TRANSITIONS
+   Uso: <Transition name="modal"> alrededor de
+   componentes modales centrados (v-if)
+   ═══════════════════════════════════════════════ */
+
+.modal-enter-active {
+  transition: opacity 0.22s ease, transform 0.26s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+.modal-leave-active {
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+.modal-enter-from { opacity: 0; transform: scale(0.92) translateY(10px); }
+.modal-leave-to   { opacity: 0; transform: scale(0.96) translateY(4px); }
+
+/* ═══════════════════════════════════════════════
+   SHEET TRANSITIONS
+   Uso: <Transition name="sheet"> para bottom sheets
+   y overlays que suben desde abajo
+   ═══════════════════════════════════════════════ */
+
+.sheet-enter-active {
+  transition: opacity 0.28s ease, transform 0.30s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.sheet-leave-active {
+  transition: opacity 0.18s ease, transform 0.20s cubic-bezier(0.4, 0, 1, 1);
+}
+.sheet-enter-from { opacity: 0; transform: translateY(56px); }
+.sheet-leave-to   { opacity: 0; transform: translateY(32px); }
+
+/* ═══════════════════════════════════════════════
+   OVERLAY TRANSITIONS
+   Uso: <Transition name="overlay"> para fullscreen
+   overlays (WorkoutTimer, RestTimer, VerseScreen)
+   ═══════════════════════════════════════════════ */
+
+.overlay-enter-active { transition: opacity 0.22s ease; }
+.overlay-leave-active { transition: opacity 0.18s ease; }
+.overlay-enter-from   { opacity: 0; }
+.overlay-leave-to     { opacity: 0; }

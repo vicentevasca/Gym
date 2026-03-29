@@ -250,38 +250,46 @@ const weekSummary = computed(() => {
     <BottomNav />
 
     <!-- Rest timer overlay -->
-    <RestTimer
-      v-if="resting && !activeTimer"
-      :seconds="restSeconds"
-      @complete="onRestDone"
-      @skip="onRestDone"
-    />
+    <Transition name="overlay">
+      <RestTimer
+        v-if="resting && !activeTimer"
+        :seconds="restSeconds"
+        @complete="onRestDone"
+        @skip="onRestDone"
+      />
+    </Transition>
 
     <!-- Workout timer (active set + rest) -->
-    <WorkoutTimer
-      v-if="activeTimer"
-      :exercise="activeTimer.exercise"
-      :set-index="activeTimer.setIndex"
-      :total-sets="activeTimer.exercise.sets.length"
-      @set-done="onTimerSetDone"
-      @rest-done="onTimerRestDone"
-      @close="onTimerClose"
-    />
+    <Transition name="overlay">
+      <WorkoutTimer
+        v-if="activeTimer"
+        :exercise="activeTimer.exercise"
+        :set-index="activeTimer.setIndex"
+        :total-sets="activeTimer.exercise.sets.length"
+        @set-done="onTimerSetDone"
+        @rest-done="onTimerRestDone"
+        @close="onTimerClose"
+      />
+    </Transition>
 
-    <!-- Session complete modal -->
-    <SessionComplete
-      v-if="showComplete"
-      :session="session"
-      :suggestions="suggestions"
-      @close="showComplete = false"
-    />
+    <!-- Session complete -->
+    <Transition name="sheet">
+      <SessionComplete
+        v-if="showComplete"
+        :session="session"
+        :suggestions="suggestions"
+        @close="showComplete = false"
+      />
+    </Transition>
 
     <!-- Routine detail sheet -->
-    <RoutineDetailSheet
-      v-if="showRoutineSheet && training.routine"
-      :routine="training.routine"
-      @close="showRoutineSheet = false"
-    />
+    <Transition name="sheet">
+      <RoutineDetailSheet
+        v-if="showRoutineSheet && training.routine"
+        :routine="training.routine"
+        @close="showRoutineSheet = false"
+      />
+    </Transition>
   </div>
 </template>
 

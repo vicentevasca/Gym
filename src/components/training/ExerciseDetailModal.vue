@@ -1,11 +1,26 @@
 <script setup>
-import { computed } from 'vue'
-import { EXERCISES_BY_ID } from '@/data/exercises'
+import { ref, computed, onMounted } from 'vue'
+import { gsap }                     from 'gsap'
+import { EXERCISES_BY_ID }          from '@/data/exercises'
 
 const props = defineProps({
   exercise: { type: Object, required: true },
 })
 const emit = defineEmits(['close'])
+
+const overlayEl = ref(null)
+const sheetEl   = ref(null)
+
+onMounted(() => {
+  gsap.from(overlayEl.value, { opacity: 0, duration: 0.22, ease: 'power2.out' })
+  gsap.from(sheetEl.value,   { y: 80, opacity: 0, duration: 0.30, ease: 'power3.out', delay: 0.04 })
+})
+
+function close() {
+  const tl = gsap.timeline({ onComplete: () => emit('close') })
+  tl.to(sheetEl.value,   { y: 60, opacity: 0, duration: 0.18, ease: 'power2.in' })
+  tl.to(overlayEl.value, { opacity: 0, duration: 0.14, ease: 'power2.in' }, '-=0.10')
+}
 
 // Look up full exercise data from catalogue if available
 const full = computed(() => EXERCISES_BY_ID?.[props.exercise.exercise_id || props.exercise.id] || props.exercise)
@@ -63,8 +78,8 @@ const restLabel = computed(() => {
 
 <template>
   <Teleport to="body">
-    <div class="detail-overlay" @click.self="emit('close')">
-      <div class="detail-sheet">
+    <div ref="overlayEl" class="detail-overlay" @click.self="close">
+      <div ref="sheetEl" class="detail-sheet">
 
         <!-- Handle -->
         <div class="sheet-handle" />
@@ -75,7 +90,7 @@ const restLabel = computed(() => {
             <h2 class="detail-name">{{ full.name }}</h2>
             <p class="detail-category label-caps">{{ categoryLabel }}</p>
           </div>
-          <button type="button" class="close-btn" @click="emit('close')">
+          <button type="button" class="close-btn" @click="close">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>
@@ -166,7 +181,7 @@ const restLabel = computed(() => {
 
         </div><!-- /scroll -->
 
-        <button type="button" class="btn btn-primary close-primary-btn" @click="emit('close')">
+        <button type="button" class="btn btn-primary close-primary-btn" @click="close">
           Entendido
         </button>
 

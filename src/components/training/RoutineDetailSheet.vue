@@ -1,13 +1,17 @@
 <script setup>
-import { ref, computed } from 'vue'
-import { useTrainingStore } from '@/stores/training.store'
-import { usePointsStore }   from '@/stores/points.store'
-import ExerciseDetailModal  from './ExerciseDetailModal.vue'
+import { ref, computed, onMounted } from 'vue'
+import { gsap }                     from 'gsap'
+import { useTrainingStore }         from '@/stores/training.store'
+import { usePointsStore }           from '@/stores/points.store'
+import ExerciseDetailModal          from './ExerciseDetailModal.vue'
 
 const props = defineProps({
   routine: { type: Object, required: true },
 })
 const emit = defineEmits(['close'])
+
+const overlayEl = ref(null)
+const sheetEl   = ref(null)
 
 const training = useTrainingStore()
 const points   = usePointsStore()
@@ -98,12 +102,23 @@ const styleLabel = computed(() => {
   }
   return map[props.routine.style] || props.routine.style || 'Mi rutina'
 })
+
+onMounted(() => {
+  gsap.from(overlayEl.value, { opacity: 0, duration: 0.22, ease: 'power2.out' })
+  gsap.from(sheetEl.value,   { y: 90, opacity: 0, duration: 0.32, ease: 'power3.out', delay: 0.04 })
+})
+
+function close() {
+  const tl = gsap.timeline({ onComplete: () => emit('close') })
+  tl.to(sheetEl.value,   { y: 70, opacity: 0, duration: 0.18, ease: 'power2.in' })
+  tl.to(overlayEl.value, { opacity: 0, duration: 0.14, ease: 'power2.in' }, '-=0.10')
+}
 </script>
 
 <template>
   <Teleport to="body">
-    <div class="sheet-overlay" @click.self="emit('close')">
-      <div class="routine-sheet">
+    <div ref="overlayEl" class="sheet-overlay" @click.self="close">
+      <div ref="sheetEl" class="routine-sheet">
 
         <!-- Handle -->
         <div class="sheet-handle" />
@@ -114,7 +129,7 @@ const styleLabel = computed(() => {
             <h2 class="sheet-title">Mi Rutina</h2>
             <p class="sheet-sub label-caps">{{ styleLabel }} · {{ routine.days_per_week || routine.training_days || '?' }} días/sem</p>
           </div>
-          <button type="button" class="close-btn" @click="emit('close')">
+          <button type="button" class="close-btn" @click="close">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>
