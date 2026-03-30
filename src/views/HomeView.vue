@@ -5,6 +5,7 @@ import AppHeader             from '@/components/ui/AppHeader.vue'
 import BottomNav             from '@/components/ui/BottomNav.vue'
 import VerseScreen           from '@/components/verse/VerseScreen.vue'
 import ShareSheet            from '@/components/ui/ShareSheet.vue'
+import SplashScreen          from '@/components/ui/SplashScreen.vue'
 import { useAuthStore }      from '@/stores/auth.store'
 import { useTrainingStore }  from '@/stores/training.store'
 import { useNutritionStore } from '@/stores/nutrition.store'
@@ -39,9 +40,13 @@ const showShareSheet   = ref(false)
 const lastMoodChecked  = ref(null)
 const loadingData      = ref(true)
 
+// ── Splash: solo una vez por sesión (tras login) ──────────────
+const SPLASH_KEY  = 'disciplina_splash_done'
+const splashRef   = ref(null)
+const showSplash  = ref(!sessionStorage.getItem(SPLASH_KEY))
+
 onMounted(async () => {
-  fadeIn(content.value, { y: 0, duration: 0.4 })
-  await Promise.all([
+  const dataPromise = Promise.all([
     training.loadTodaySession(),
     nutrition.loadDayLog(),
     verse.loadTodayVerse(),
@@ -49,8 +54,25 @@ onMounted(async () => {
     ranking.load(),
     mood.loadTodayMood(),
   ])
+
+  if (showSplash.value && splashRef.value) {
+    // Splash dura lo que tarde la carga, con un tope de 2 segundos
+    await Promise.race([
+      dataPromise,
+      new Promise(r => setTimeout(r, 2000)),
+    ])
+    await splashRef.value.dismiss()
+    sessionStorage.setItem(SPLASH_KEY, '1')
+    showSplash.value = false
+  }
+
+  // Asegurar que los datos terminen si la carga fue más lenta que el splash
+  await dataPromise
   loadingData.value = false
-  staggerIn('.home-card', { delay: 0.2, y: 20 })
+
+  fadeIn(content.value, { y: 0, duration: 0.5 })
+  staggerIn('.home-card', { delay: 0.15, y: 20 })
+
   if (!verse.shown && verse.verse) {
     setTimeout(() => { showVerse.value = true }, 600)
   }
@@ -266,6 +288,9 @@ const sessionProgress = computed(() => {
     </main>
 
     <BottomNav />
+
+    <!-- ── Splash de entrada (solo primera vez por sesión) ── -->
+    <SplashScreen v-if="showSplash" ref="splashRef" />
 
     <!-- Verse modal -->
     <Transition name="overlay">

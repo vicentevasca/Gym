@@ -3,8 +3,8 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.store'
 import { useTheme } from '@/composables/useTheme'
-import { logoReveal, staggerIn, shakeError, fadeIn } from '@/composables/useAnimations'
-import ThemeToggle from '@/components/ui/ThemeToggle.vue'
+import { logoReveal, staggerIn, shakeError } from '@/composables/useAnimations'
+import DitheringShader from '@/components/ui/DitheringShader.vue'
 
 const router = useRouter()
 const auth   = useAuthStore()
@@ -56,17 +56,22 @@ async function handleGoogle() {
 <template>
   <div class="auth-page">
 
-    <!-- Fondo decorativo -->
-    <div class="auth-bg" aria-hidden="true">
-      <div class="auth-blob auth-blob-1" />
-      <div class="auth-blob auth-blob-2" />
+    <!-- ── Fondo WebGL dithering ──────────────────────────── -->
+    <div class="auth-shader-bg" aria-hidden="true">
+      <DitheringShader
+        shape="wave"
+        type="8x8"
+        colorBack="#04040f"
+        colorFront="#6d28d9"
+        :pxSize="3"
+        :speed="0.55"
+      />
     </div>
 
-    <!-- Toggle tema -->
-    <div class="auth-topbar">
-      <ThemeToggle />
-    </div>
+    <!-- ── Overlay de suavizado ───────────────────────────── -->
+    <div class="auth-overlay" aria-hidden="true" />
 
+    <!-- ── Contenido ─────────────────────────────────────── -->
     <div class="auth-inner">
 
       <!-- Logo -->
@@ -128,8 +133,8 @@ async function handleGoogle() {
             ¿Olvidaste tu contraseña?
           </RouterLink>
 
-          <button type="submit" class="btn btn-primary btn-full" :disabled="loading">
-            <span v-if="loading" class="spinner" />
+          <button type="submit" class="btn-login btn-full" :disabled="loading">
+            <span v-if="loading" class="spinner-white" />
             <span v-else>Entrar</span>
           </button>
         </div>
@@ -170,49 +175,39 @@ export default { components: { GoogleIcon } }
 </script>
 
 <style scoped>
+/* ── Layout ────────────────────────────────────────────────── */
 .auth-page {
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: var(--bg);
   padding: var(--space-5);
-  padding-top: calc(var(--space-5) + var(--safe-top));
+  padding-top:    calc(var(--space-5) + var(--safe-top));
   padding-bottom: calc(var(--space-5) + var(--safe-bottom));
   position: relative;
   overflow: hidden;
+  background: #04040f;
 }
 
-/* Blobs decorativos */
-.auth-bg { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
-.auth-blob {
+/* ── WebGL background ──────────────────────────────────────── */
+.auth-shader-bg {
   position: absolute;
-  border-radius: 50%;
-  filter: blur(80px);
-  opacity: 0.12;
-}
-.auth-blob-1 {
-  width: 400px; height: 400px;
-  background: var(--accent);
-  top: -100px; right: -100px;
-}
-.auth-blob-2 {
-  width: 300px; height: 300px;
-  background: var(--accent-deep);
-  bottom: -80px; left: -80px;
-  opacity: 0.08;
-}
-[data-mode="light"] .auth-blob-1 { opacity: 0.15; }
-[data-mode="light"] .auth-blob-2 { opacity: 0.10; }
-
-.auth-topbar {
-  position: fixed;
-  top: calc(var(--space-4) + var(--safe-top));
-  right: var(--space-4);
-  z-index: 10;
+  inset: 0;
+  pointer-events: none;
 }
 
+/* ── Gradient overlay — vignette + legibility ──────────────── */
+.auth-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 100%, rgba(4,4,15,0.7) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 40% at 50% 0%,   rgba(4,4,15,0.5) 0%, transparent 60%);
+}
+
+/* ── Card container ────────────────────────────────────────── */
 .auth-inner {
   width: 100%;
   max-width: 380px;
@@ -223,7 +218,7 @@ export default { components: { GoogleIcon } }
   z-index: 1;
 }
 
-/* Logo */
+/* ── Logo ──────────────────────────────────────────────────── */
 .auth-logo {
   display: flex;
   align-items: center;
@@ -233,44 +228,149 @@ export default { components: { GoogleIcon } }
 .auth-logo-mark {
   width: 48px; height: 48px;
   border-radius: var(--radius);
-  background: var(--gradient-accent);
+  background: linear-gradient(135deg, #7c3aed, #a855f7);
   display: flex; align-items: center; justify-content: center;
   font-family: var(--font-display);
   font-size: 24px;
   font-weight: 500;
   color: #fff;
-  box-shadow: var(--shadow-accent);
+  box-shadow: 0 0 24px rgba(109,40,217,0.5);
   flex-shrink: 0;
 }
 .auth-logo h1 {
   font-size: var(--text-2xl);
   font-weight: 300;
   letter-spacing: 0.18em;
-  color: var(--text);
+  color: #ffffff;
   line-height: 1;
 }
 .auth-tagline {
-  color: var(--muted);
+  color: rgba(255,255,255,0.55);
   font-size: var(--text-sm);
   margin-top: 2px;
   letter-spacing: 0.02em;
 }
 
-/* Form */
-.auth-form { display: flex; flex-direction: column; gap: var(--space-3); }
-.fields-stack { display: flex; flex-direction: column; gap: var(--space-3); }
-.auth-actions { display: flex; flex-direction: column; gap: var(--space-3); }
+/* ── Form ──────────────────────────────────────────────────── */
+.auth-form     { display: flex; flex-direction: column; gap: var(--space-3); }
+.fields-stack  { display: flex; flex-direction: column; gap: var(--space-3); }
+.auth-actions  { display: flex; flex-direction: column; gap: var(--space-3); }
 
+/* Inputs — glassmorphism sobre el shader */
+.auth-inner :deep(.input-with-icon) {
+  position: relative;
+}
+.auth-inner :deep(.input-icon) {
+  color: rgba(255,255,255,0.45);
+}
+.auth-inner :deep(.input-field) {
+  background: rgba(255,255,255,0.08);
+  border: 1.5px solid rgba(255,255,255,0.18);
+  color: #ffffff;
+  caret-color: #a78bfa;
+  border-radius: var(--radius);
+  height: 52px;
+  padding: 0 var(--space-4) 0 44px;
+  font-size: var(--text-base);
+  transition: border-color 0.2s, background 0.2s;
+  width: 100%;
+  box-sizing: border-box;
+}
+.auth-inner :deep(.input-field::placeholder) {
+  color: rgba(255,255,255,0.35);
+}
+.auth-inner :deep(.input-field:focus) {
+  outline: none;
+  border-color: rgba(167,139,250,0.7);
+  background: rgba(255,255,255,0.12);
+}
+.auth-inner :deep(.input-field.error) {
+  border-color: rgba(248,113,113,0.7);
+}
+.auth-inner :deep(.input-action) {
+  color: rgba(255,255,255,0.4);
+}
+.auth-inner :deep(.input-action:hover) {
+  color: rgba(255,255,255,0.8);
+}
+
+/* ── Forgot link ───────────────────────────────────────────── */
 .forgot-link {
   align-self: flex-end;
-  color: var(--muted);
+  color: rgba(255,255,255,0.45);
   font-size: var(--text-sm);
   text-decoration: none;
   transition: color 0.2s;
 }
-.forgot-link:hover { color: var(--accent); }
+.forgot-link:hover { color: #c4b5fd; }
 
-/* Google button */
+/* ── Login button ──────────────────────────────────────────── */
+.btn-login {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 52px;
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, #7c3aed, #a855f7);
+  border: none;
+  color: #fff;
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(109,40,217,0.45);
+  transition: filter 0.2s, box-shadow 0.2s;
+}
+.btn-login:hover:not(:disabled) {
+  filter: brightness(1.12);
+  box-shadow: 0 6px 28px rgba(109,40,217,0.6);
+}
+.btn-login:disabled { opacity: 0.55; pointer-events: none; }
+
+.spinner-white {
+  width: 18px; height: 18px;
+  border: 2.5px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.65s linear infinite;
+  display: inline-block;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Error text ────────────────────────────────────────────── */
+.error-text {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: #fca5a5;
+  padding: var(--space-2) var(--space-3);
+  background: rgba(248,113,113,0.1);
+  border: 1px solid rgba(248,113,113,0.25);
+  border-radius: var(--radius-sm);
+}
+
+/* ── Divider ───────────────────────────────────────────────── */
+.divider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.3);
+}
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(255,255,255,0.12);
+}
+
+/* ── Google button ─────────────────────────────────────────── */
 .btn-google {
   display: flex;
   align-items: center;
@@ -278,36 +378,42 @@ export default { components: { GoogleIcon } }
   gap: var(--space-3);
   height: 52px;
   border-radius: var(--radius);
-  background: var(--surface);
-  border: 1.5px solid var(--border-hi);
-  color: var(--text-2);
+  background: rgba(255,255,255,0.07);
+  border: 1.5px solid rgba(255,255,255,0.18);
+  color: rgba(255,255,255,0.85);
   font-family: var(--font-ui);
   font-weight: 600;
   font-size: var(--text-sm);
-  letter-spacing: 0.04em;
-  transition: var(--transition);
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
 }
-.btn-google:hover {
-  background: var(--card);
-  border-color: var(--border-focus);
-  color: var(--text);
+.btn-google:hover:not(:disabled) {
+  background: rgba(255,255,255,0.13);
+  border-color: rgba(255,255,255,0.3);
+  color: #fff;
 }
 .btn-google:disabled { opacity: 0.5; pointer-events: none; }
 
+/* ── Footer ────────────────────────────────────────────────── */
 .auth-footer {
   text-align: center;
-  color: var(--muted);
+  color: rgba(255,255,255,0.4);
   font-size: var(--text-sm);
 }
 .auth-footer a {
-  color: var(--accent);
+  color: #c4b5fd;
   text-decoration: none;
   font-weight: 600;
   margin-left: 4px;
+  transition: color 0.2s;
 }
-.auth-footer a:hover { text-decoration: underline; }
+.auth-footer a:hover { color: #a78bfa; text-decoration: underline; }
 
-/* Transition error */
+/* ── btn-full util ─────────────────────────────────────────── */
+.btn-full { width: 100%; }
+
+/* ── Transition error ──────────────────────────────────────── */
 .slide-down-enter-active, .slide-down-leave-active {
   transition: opacity 0.2s, transform 0.2s;
   overflow: hidden;

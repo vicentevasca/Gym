@@ -97,6 +97,7 @@ function confirmLogout() {
 
 async function handleLogout() {
   showLogoutConfirm.value = false
+  sessionStorage.removeItem('disciplina_splash_done')
   await auth.signOut()
   router.push('/login')
 }
