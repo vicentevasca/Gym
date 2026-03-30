@@ -31,19 +31,19 @@ onMounted(async () => {
     ranking.load(),
   ])
   if (tab.value === 'retos' && rewards.questionnaireCompleted) {
-    staggerIn('.category-section', { delay: 0.15 })
+    staggerIn(document.querySelectorAll('.category-section'), { delay: 0.15 })
   }
 })
 
 watch(tab, (val) => {
   if (val === 'retos' && rewards.questionnaireCompleted) {
-    setTimeout(() => staggerIn('.category-section', { delay: 0.1 }), 50)
+    setTimeout(() => staggerIn(document.querySelectorAll('.category-section'), { delay: 0.1 }), 50)
   }
 })
 
 async function onQuestComplete() {
   tab.value = 'retos'
-  setTimeout(() => staggerIn('.category-section', { delay: 0.2 }), 100)
+  setTimeout(() => staggerIn(document.querySelectorAll('.category-section'), { delay: 0.2 }), 100)
 }
 
 async function handleStart(reward) {
@@ -55,15 +55,16 @@ async function handleComplete(challenge) {
   await rewards.completeChallenge(challenge.docId, points)
   lastCompleted.value = challenge
   navigator.vibrate?.([50, 30, 80])
-  gsap.from('.category-section', { opacity: 0.5, duration: 0.4 })
+  const catSections = document.querySelectorAll('.category-section')
+  if (catSections.length) gsap.from(catSections, { opacity: 0.5, duration: 0.4 })
   showShareSheet.value = true
 }
 
 const rankShareOptions = computed(() => [
   {
     id:    'rank',
-    icon:  ranking.currentLevel?.emoji || '🌱',
-    label: `Compartir mi rango — ${ranking.currentLevel?.name || 'Iniciado'}`,
+    icon:  ranking.currentLevel?.emoji ?? '🌱',
+    label: `Compartir mi rango — ${ranking.currentLevel?.name ?? 'Iniciado'}`,
     fn:    () => shareRank({ ranking, streak: ranking.streak }),
   },
 ])

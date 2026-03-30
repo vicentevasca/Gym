@@ -147,8 +147,11 @@ async function handleGoogle() {
       <!-- Google -->
       <div :ref="el => fieldsEl[4] = el">
         <button class="btn-google btn-full" @click="handleGoogle" :disabled="loading">
-          <GoogleIcon />
-          <span>Continuar con Google</span>
+          <span v-if="loading" class="spinner-white" />
+          <template v-else>
+            <GoogleIcon />
+            <span>Continuar con Google</span>
+          </template>
         </button>
       </div>
 

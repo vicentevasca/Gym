@@ -104,7 +104,10 @@ watch(searchQuery, (val) => {
 async function fetchOpenFoodFacts(q) {
   try {
     const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&fields=product_name,nutriments,product_name_es&page_size=15&lc=es`
-    const res  = await fetch(url, { signal: AbortSignal.timeout(5000) })
+    const controller = new AbortController()
+    const timeoutId  = setTimeout(() => controller.abort(), 5000)
+    const res  = await fetch(url, { signal: controller.signal })
+    clearTimeout(timeoutId)
 
     if (!res.ok) throw new Error('HTTP error')
 
@@ -286,8 +289,9 @@ function addFood() {
 .fs-title { font-size: var(--text-base); font-weight: 700; }
 .fs-close {
   background: none; border: none; color: var(--muted);
-  cursor: pointer; padding: 4px; border-radius: var(--radius-sm);
-  transition: var(--transition);
+  cursor: pointer; padding: 8px; border-radius: var(--radius-sm);
+  transition: var(--transition); min-width: 44px; min-height: 44px;
+  display: flex; align-items: center; justify-content: center;
 }
 .fs-close:hover { color: var(--text); background: var(--faint); }
 

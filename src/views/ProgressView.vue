@@ -63,7 +63,7 @@ onMounted(async () => {
   ])
   buildHeatmap()
   loading.value = false
-  staggerIn('.prog-section', { delay: 0.15 })
+  staggerIn(document.querySelectorAll('.prog-section'), { delay: 0.15 })
 })
 
 function buildHeatmap() {
@@ -156,8 +156,9 @@ function toggleSession(id) {
 
 function formatDate(dateStr) {
   if (!dateStr) return ''
-  const [y, m, d] = dateStr.split('-')
-  const date = new Date(Number(y), Number(m) - 1, Number(d))
+  const [y, m, d] = dateStr.split('-').map(Number)
+  if (isNaN(y) || isNaN(m) || isNaN(d)) return dateStr
+  const date = new Date(y, m - 1, d)
   return date.toLocaleDateString('es', { weekday: 'short', day: 'numeric', month: 'short' })
 }
 

@@ -24,9 +24,9 @@ const router = useRouter()
 
     <div class="header-right">
       <!-- Racha -->
-      <div v-if="auth.profile?.current_streak" class="streak-chip">
+      <div v-if="auth.profile?.current_streak > 0" class="streak-chip">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="var(--warning)" stroke="none"><path d="M12 2C8 7 5 10 5 14a7 7 0 0014 0c0-4-3-7-7-12z"/></svg>
-        <span>{{ auth.profile.current_streak }}</span>
+        <span>{{ auth.profile.current_streak ?? 0 }}</span>
       </div>
 
       <ThemeToggle />
@@ -88,7 +88,7 @@ const router = useRouter()
 
 .avatar-link { text-decoration: none; }
 .avatar {
-  width: 34px; height: 34px;
+  width: 44px; height: 44px;
   border-radius: var(--radius-sm);
   background: var(--gradient-accent);
   display: flex; align-items: center; justify-content: center;

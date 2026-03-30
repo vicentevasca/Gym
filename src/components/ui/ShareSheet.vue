@@ -66,7 +66,7 @@ async function handleOption(opt) {
             :key="opt.id"
             type="button"
             class="share-opt"
-            :disabled="!!loadingId"
+            :disabled="loadingId === opt.id"
             @click="handleOption(opt)"
           >
             <div class="share-opt-icon">
@@ -113,7 +113,7 @@ async function handleOption(opt) {
 }
 .share-title { color: var(--accent); }
 .share-close {
-  width: 30px; height: 30px; border-radius: 50%;
+  width: 44px; height: 44px; border-radius: 50%;
   background: var(--faint); border: none; color: var(--muted);
   display: flex; align-items: center; justify-content: center;
   cursor: pointer; transition: var(--transition);

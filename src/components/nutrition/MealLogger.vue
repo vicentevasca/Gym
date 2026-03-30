@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import FoodSearch from './FoodSearch.vue'
 import { useNutritionStore } from '@/stores/nutrition.store'
 
@@ -26,7 +26,7 @@ async function handleRemove(foodId) {
   await nutrition.removeFood(props.meal.id, foodId)
 }
 
-const mealKcal = () => props.meal.foods?.reduce((a, f) => a + f.kcal, 0) ?? 0
+const mealKcal = computed(() => props.meal.foods?.reduce((a, f) => a + (f.kcal || 0), 0) ?? 0)
 </script>
 
 <template>
@@ -37,7 +37,7 @@ const mealKcal = () => props.meal.foods?.reduce((a, f) => a + f.kcal, 0) ?? 0
         <span class="meal-icon">{{ mealIcons[meal.id] ?? '🍽️' }}</span>
         <div>
           <p class="meal-name">{{ meal.name }}</p>
-          <p class="meal-kcal">{{ mealKcal() }} kcal</p>
+          <p class="meal-kcal">{{ mealKcal }} kcal</p>
         </div>
       </div>
       <button class="add-btn" @click="searching = !searching">
@@ -82,7 +82,7 @@ const mealKcal = () => props.meal.foods?.reduce((a, f) => a + f.kcal, 0) ?? 0
 .meal-kcal   { font-size: var(--text-xs); color: var(--muted); font-family: var(--font-mono); margin-top: 1px; }
 
 .add-btn {
-  width: 34px; height: 34px; border-radius: 50%;
+  width: 44px; height: 44px; border-radius: 50%;
   border: 1.5px solid var(--accent); background: var(--accent-dim); color: var(--accent);
   display: flex; align-items: center; justify-content: center;
   cursor: pointer; transition: var(--transition);

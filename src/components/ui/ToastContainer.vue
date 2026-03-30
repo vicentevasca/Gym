@@ -6,7 +6,7 @@ const { toasts, dismiss } = useToast()
 
 <template>
   <Teleport to="body">
-    <div class="toast-wrap" aria-live="polite" aria-atomic="false">
+    <div class="toast-wrap" aria-live="polite" aria-atomic="true">
       <TransitionGroup name="toast">
         <div
           v-for="t in toasts"

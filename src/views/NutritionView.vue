@@ -34,7 +34,7 @@ const copiedYesterday  = ref(false)
 onMounted(async () => {
   await nutrition.loadDayLog()
   await training.loadRoutine()
-  staggerIn('.meal-section', { delay: 0.2 })
+  staggerIn(document.querySelectorAll('.meal-section'), { delay: 0.2 })
 })
 
 // ── Computed ──────────────────────────────────────────────────────────────
@@ -52,8 +52,15 @@ const routine   = computed(() => training.routine)
 
 // ── Actions ───────────────────────────────────────────────────────────────
 
+const addingWater = ref(false)
 async function addWater(ml) {
-  await nutrition.logWater(ml)
+  if (addingWater.value) return
+  addingWater.value = true
+  try {
+    await nutrition.logWater(ml)
+  } finally {
+    addingWater.value = false
+  }
 }
 
 async function handleGenerate(params) {
@@ -162,9 +169,9 @@ const TABS = [
                 <div class="water-fill" :style="{ width: waterPct + '%' }" />
               </div>
               <div class="water-btns">
-                <button type="button" class="water-btn" @click="addWater(150)">+150ml</button>
-                <button type="button" class="water-btn" @click="addWater(250)">+250ml</button>
-                <button type="button" class="water-btn" @click="addWater(500)">+500ml</button>
+                <button type="button" class="water-btn" :disabled="addingWater" @click="addWater(150)">+150ml</button>
+                <button type="button" class="water-btn" :disabled="addingWater" @click="addWater(250)">+250ml</button>
+                <button type="button" class="water-btn" :disabled="addingWater" @click="addWater(500)">+500ml</button>
               </div>
             </div>
           </section>
@@ -360,6 +367,7 @@ const TABS = [
   transition: var(--transition);
 }
 .water-btn:hover { border-color: #60a5fa; color: #60a5fa; }
+.water-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* ── No plan CTA ──────────────────────────────────────────── */
 .no-plan-card {

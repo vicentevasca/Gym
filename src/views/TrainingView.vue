@@ -50,7 +50,8 @@ function onTimerClose() {
 onMounted(async () => {
   await training.loadRoutine()
   await training.loadTodaySession()
-  staggerIn('.exercise-card', { delay: 0.2 })
+  const cards = document.querySelectorAll('.exercise-card')
+  if (cards.length) staggerIn(cards, { delay: 0.2 })
   points.subscribe()
 })
 
@@ -72,9 +73,9 @@ const warmupItems = [
 
 function onRequestRest(restSec) {
   resting.value     = true
-  restSeconds.value = restSec
-    ?? session.value?.exercises?.[activeExerciseIdx.value]?.rest_sec
-    ?? 90
+  restSeconds.value = restSec != null
+    ? restSec
+    : (session.value?.exercises?.[activeExerciseIdx.value]?.rest_sec ?? 90)
 }
 function onRestDone() { resting.value = false }
 

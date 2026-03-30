@@ -60,7 +60,7 @@ async function selectTheme(themeId) {
 
 async function handleSaveWeight() {
   const w = parseFloat(weightInput.value)
-  if (!w || w < 20 || w > 300) return
+  if (isNaN(w) || w < 20 || w > 300) return
   savingWeight.value = true
   try {
     await profile.saveWeight(w)

@@ -18,7 +18,7 @@ function completeReto() {
 const versoExpanded = ref(false)
 
 // ── Líneas del verso ───────────────────────────────────────────
-const versoLines = computed(() => verso.body.split('\n'))
+const versoLines = computed(() => (verso.body || '').split('\n'))
 
 // ── Categoría color para micro-reto ───────────────────────────
 const CATEGORIA_COLOR = {

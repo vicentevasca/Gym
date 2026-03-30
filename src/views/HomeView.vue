@@ -160,9 +160,9 @@ const sessionProgress = computed(() => {
           </div>
           <h2 class="welcome-name display-lg">{{ auth.alias }}</h2>
           <div class="welcome-rank-row" @click="router.push('/rewards')">
-            <span class="rank-dot" :style="{ background: ranking.currentLevel.color }" />
-            <span class="rank-name-sm" :style="{ color: ranking.currentLevel.color }">
-              {{ ranking.currentLevel.emoji }} {{ ranking.currentLevel.name }}
+            <span class="rank-dot" :style="{ background: ranking.currentLevel?.color || 'var(--accent)' }" />
+            <span class="rank-name-sm" :style="{ color: ranking.currentLevel?.color || 'var(--accent)' }">
+              {{ ranking.currentLevel?.emoji || '🌱' }} {{ ranking.currentLevel?.name || 'Iniciado' }}
             </span>
             <span class="rank-xp num-sm">{{ ranking.xp }} XP</span>
           </div>

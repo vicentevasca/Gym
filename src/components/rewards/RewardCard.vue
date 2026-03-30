@@ -22,6 +22,9 @@ const daysLeft = computed(() => {
   if (!props.reward.isActive || !props.reward.activeChallenge) return null
   const end  = new Date(props.reward.activeChallenge.end_date)
   const now  = new Date()
+  // Normalize to midnight to avoid timezone drift
+  end.setHours(0, 0, 0, 0)
+  now.setHours(0, 0, 0, 0)
   const diff = Math.ceil((end - now) / (1000 * 60 * 60 * 24))
   return Math.max(diff, 0)
 })
@@ -33,7 +36,7 @@ const difficultyDots = computed(() => props.reward.difficulty_score || 3)
 const challengeProgress = computed(() => {
   if (!props.reward.isActive || !props.reward.activeChallenge) return null
   const challenge  = props.reward.activeChallenge
-  const total      = challenge.days ?? props.reward.days ?? 1
+  const total      = (challenge.days ?? props.reward.days ?? 1) || 1
   const elapsed    = total - (daysLeft.value ?? 0)
   const pct        = Math.min(Math.round((elapsed / total) * 100), 100)
   return { elapsed: Math.max(elapsed, 0), total, pct }

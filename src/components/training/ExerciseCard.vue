@@ -192,7 +192,7 @@ defineExpose({ completeSet })
 
     <!-- Progreso -->
     <div class="ex-progress">
-      <div class="ex-progress-fill" :style="{ width: (localSets.filter(s=>s.completed).length / localSets.length * 100) + '%' }" />
+      <div class="ex-progress-fill" :style="{ width: (localSets.length ? (localSets.filter(s=>s.completed).length / localSets.length * 100) : 0) + '%' }" />
     </div>
 
     <!-- Regression / Progression -->
@@ -295,6 +295,10 @@ defineExpose({ completeSet })
 }
 .set-input:focus { border-color: var(--border-focus); outline: none; }
 .set-input:disabled { opacity: 0.5; }
+/* Hide number spinners on mobile */
+.set-input::-webkit-outer-spin-button,
+.set-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.set-input[type="number"] { -moz-appearance: textfield; }
 .check-btn {
   width: 44px; height: 40px; border-radius: var(--radius-sm);
   border: 2px solid var(--border-hi);
