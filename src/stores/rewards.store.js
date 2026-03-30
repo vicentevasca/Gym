@@ -17,7 +17,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import {
   doc, getDoc, setDoc, updateDoc,
-  collection, addDoc, getDocs, orderBy, query, serverTimestamp,
+  collection, addDoc, getDocs, query, serverTimestamp,
 } from 'firebase/firestore'
 import { db } from '@/firebase/config'
 import { useAuthStore } from './auth.store'
@@ -290,17 +290,20 @@ export const useRewardsStore = defineStore('rewards', () => {
   async function completeChallenge(challengeDocId, pointsStore) {
     if (!auth.uid) return
     const ref = doc(db, 'users', auth.uid, 'reward_challenges', challengeDocId)
+
+    // Leer el costo directamente desde Firestore para garantizar que
+    // los puntos se otorgan incluso si activeRewards no está en memoria
+    const snap = await getDoc(ref)
+    if (!snap.exists()) return
+    const challengeData = snap.data()
+
     await updateDoc(ref, {
       status:       'completed',
       completed_at: serverTimestamp(),
     })
 
-    // Encontrar el reto en activeRewards para saber el costo
-    const challenge = activeRewards.value.find(c => c.docId === challengeDocId)
-    if (challenge && pointsStore) {
-      // Los puntos se gastan al canjear la recompensa: aquí los ganamos
-      // por completar el reto (no por canjearlo — la recompensa ES el punto ganado)
-      await pointsStore.earnPoints('reward_completed', challenge.cost)
+    if (pointsStore && challengeData.cost > 0) {
+      await pointsStore.earnPoints('reward_completed', challengeData.cost)
     }
 
     await loadActiveRewards()

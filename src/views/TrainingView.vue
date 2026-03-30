@@ -70,11 +70,26 @@ const warmupItems = [
   { name: 'Activación muscular', detail: '2 series ligeras del primer ejercicio' },
 ]
 
-function onRequestRest() {
+function onRequestRest(restSec) {
   resting.value     = true
-  restSeconds.value = session.value?.exercises?.[activeExerciseIdx.value]?.rest_sec || 90
+  restSeconds.value = restSec
+    ?? session.value?.exercises?.[activeExerciseIdx.value]?.rest_sec
+    ?? 90
 }
 function onRestDone() { resting.value = false }
+
+// Arranca el descanso automáticamente al completar una serie
+// (solo si no hay timer de ejercicio activo y el ejercicio tiene rest_sec)
+function onSerieComplete(exerciseIndex) {
+  activeExerciseIdx.value = exerciseIndex
+  if (activeTimer.value) return   // timer de ejercicio tiene su propio descanso
+  const ex      = session.value?.exercises?.[exerciseIndex]
+  const restSec = ex?.rest_sec ?? 0
+  if (restSec >= 10) {
+    resting.value     = true
+    restSeconds.value = restSec
+  }
+}
 
 async function finishSession() {
   await training.completeSession()
@@ -176,7 +191,7 @@ const weekSummary = computed(() => {
                 :exercise="ex"
                 :exercise-index="i"
                 :is-active="i === activeExerciseIdx"
-                @serie-complete="activeExerciseIdx = i"
+                @serie-complete="onSerieComplete(i)"
                 @request-rest="onRequestRest"
                 @start-timer="onStartTimer"
               />

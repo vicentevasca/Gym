@@ -7,6 +7,7 @@ import { useProfileStore } from '@/stores/profile.store'
 import { useRankingStore } from '@/stores/ranking.store'
 import { useRouter }       from 'vue-router'
 import { staggerIn }       from '@/composables/useAnimations'
+import { useNotifications } from '@/composables/useNotifications'
 
 const auth    = useAuthStore()
 const profile = useProfileStore()
@@ -18,6 +19,14 @@ const rows    = ref([])
 const weightInput   = ref('')
 const savingWeight  = ref(false)
 const weightSaved   = ref(false)
+
+// ── Notificaciones ──────────────────────────────────────────────
+const notif = useNotifications()
+const notifEnabled    = ref(false)
+const reminderTime    = ref('08:00')
+const savingNotif     = ref(false)
+const notifSaved      = ref(false)
+const requestingPerm  = ref(false)
 
 // ── Logout confirm ─────────────────────────────────────────────
 const showLogoutConfirm = ref(false)
@@ -40,6 +49,9 @@ onMounted(async () => {
   profile.initTheme()
   await ranking.load()
   if (currentWeight.value) weightInput.value = currentWeight.value
+  // Load saved notification prefs
+  notifEnabled.value  = auth.profile?.settings?.notifications_enabled ?? false
+  reminderTime.value  = auth.profile?.settings?.reminder_time ?? '08:00'
 })
 
 async function selectTheme(themeId) {
@@ -56,6 +68,26 @@ async function handleSaveWeight() {
     setTimeout(() => { weightSaved.value = false }, 2500)
   } finally {
     savingWeight.value = false
+  }
+}
+
+async function handleRequestPerm() {
+  requestingPerm.value = true
+  try {
+    await notif.requestPermission()
+  } finally {
+    requestingPerm.value = false
+  }
+}
+
+async function handleSaveNotif() {
+  savingNotif.value = true
+  try {
+    await notif.saveNotificationPrefs(notifEnabled.value, reminderTime.value)
+    notifSaved.value = true
+    setTimeout(() => { notifSaved.value = false }, 2500)
+  } finally {
+    savingNotif.value = false
   }
 }
 
@@ -162,8 +194,65 @@ async function handleLogout() {
         </div>
       </div>
 
+      <!-- ── Notificaciones ─────────────────────────────────── -->
+      <div :ref="el => rows[4] = el" class="card section-card">
+        <p class="section-title label-caps">Recordatorios</p>
+
+        <!-- Permission banner -->
+        <div v-if="notif.permission.value !== 'granted'" class="perm-banner">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+          <p>Activa los permisos del sistema para recibir recordatorios.</p>
+          <button class="btn btn-secondary btn-sm" :disabled="requestingPerm" @click="handleRequestPerm">
+            <div v-if="requestingPerm" class="spinner" />
+            <span v-else>Activar</span>
+          </button>
+        </div>
+
+        <!-- Toggle + time picker -->
+        <div class="notif-row">
+          <div class="notif-toggle-wrap" @click="notifEnabled = !notifEnabled">
+            <div class="toggle-track" :class="{ on: notifEnabled }">
+              <div class="toggle-thumb" />
+            </div>
+            <span class="notif-label">Recordatorio diario</span>
+          </div>
+          <input
+            v-model="reminderTime"
+            type="time"
+            class="input-field time-input"
+            :disabled="!notifEnabled"
+          />
+        </div>
+
+        <p class="notif-hint">Te avisaremos qué toca entrenar hoy con un mensaje personalizado.</p>
+
+        <!-- Actions -->
+        <div class="notif-actions">
+          <button
+            class="btn btn-secondary notif-save-btn"
+            :disabled="savingNotif"
+            @click="handleSaveNotif"
+          >
+            <div v-if="savingNotif" class="spinner" />
+            <template v-else-if="notifSaved">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              Guardado
+            </template>
+            <template v-else>Guardar</template>
+          </button>
+          <button
+            v-if="notif.permission.value === 'granted'"
+            class="btn btn-ghost notif-test-btn"
+            @click="notif.sendTestNotification()"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+            Probar
+          </button>
+        </div>
+      </div>
+
       <!-- ── Coming soon ─────────────────────────────────────── -->
-      <div :ref="el => rows[4] = el" class="card section-card coming-card">
+      <div :ref="el => rows[5] = el" class="card section-card coming-card">
         <div class="coming-icon-sm">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 00-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0020 4.77 5.07 5.07 0 0019.91 1S18.73.65 16 2.48a13.38 13.38 0 00-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 005 4.77a5.44 5.44 0 00-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 009 18.13V22"/></svg>
         </div>
@@ -174,7 +263,7 @@ async function handleLogout() {
       </div>
 
       <!-- ── Logout ──────────────────────────────────────────── -->
-      <div :ref="el => rows[5] = el" class="logout-section">
+      <div :ref="el => rows[6] = el" class="logout-section">
         <button class="btn btn-danger btn-full" @click="confirmLogout">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
           Cerrar sesión
@@ -277,6 +366,56 @@ async function handleLogout() {
 }
 .coming-title { font-size: var(--text-sm); font-weight: 600; color: var(--text); margin-bottom: 2px; }
 .coming-sub   { font-size: var(--text-sm); color: var(--muted); }
+
+/* ── Notificaciones ──────────────────────────────────────── */
+.perm-banner {
+  display: flex; align-items: center; gap: var(--space-3);
+  background: var(--accent-dim); border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-4);
+  font-size: var(--text-sm); color: var(--accent);
+}
+.perm-banner p { flex: 1; font-weight: 600; line-height: 1.4; }
+.perm-banner svg { flex-shrink: 0; color: var(--accent); }
+.btn-sm { padding: var(--space-1) var(--space-3); font-size: var(--text-xs); min-height: 30px; }
+
+.notif-row {
+  display: flex; align-items: center; gap: var(--space-4);
+  margin-bottom: var(--space-3);
+}
+.notif-toggle-wrap {
+  display: flex; align-items: center; gap: var(--space-3);
+  cursor: pointer; user-select: none; flex: 1;
+}
+.toggle-track {
+  width: 40px; height: 22px; border-radius: 11px;
+  background: var(--border-hi);
+  position: relative; transition: background 0.22s;
+  flex-shrink: 0;
+}
+.toggle-track.on { background: var(--accent); }
+.toggle-thumb {
+  position: absolute; top: 3px; left: 3px;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: #fff;
+  transition: transform 0.22s cubic-bezier(0.34,1.56,0.64,1);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+}
+.toggle-track.on .toggle-thumb { transform: translateX(18px); }
+.notif-label { font-size: var(--text-sm); font-weight: 600; color: var(--text); }
+
+.time-input {
+  width: 110px; flex-shrink: 0;
+  text-align: center; font-family: var(--font-mono);
+  padding: var(--space-2) var(--space-3);
+}
+.time-input:disabled { opacity: 0.4; }
+
+.notif-hint { font-size: var(--text-xs); color: var(--muted); line-height: 1.5; margin-bottom: var(--space-4); }
+
+.notif-actions { display: flex; gap: var(--space-3); }
+.notif-save-btn { min-width: 100px; gap: var(--space-2); }
+.notif-test-btn { gap: var(--space-2); }
 
 /* ── Logout ─────────────────────────────────────────────── */
 .logout-section { margin-bottom: var(--space-3); }

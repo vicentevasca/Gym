@@ -6,28 +6,34 @@ import { useAuthStore }     from '@/stores/auth.store'
 import { usePointsStore }   from '@/stores/points.store'
 import { useRankingStore }  from '@/stores/ranking.store'
 import { staggerIn }        from '@/composables/useAnimations'
+import { useShareCard }     from '@/composables/useShareCard'
 import AppHeader            from '@/components/ui/AppHeader.vue'
 import BottomNav            from '@/components/ui/BottomNav.vue'
+import ShareSheet           from '@/components/ui/ShareSheet.vue'
 import ProgressChart        from '@/components/progress/ProgressChart.vue'
 import DailyClose           from '@/components/progress/DailyClose.vue'
 import VerseLibrary         from '@/components/verse/VerseLibrary.vue'
+import DailyPulse           from '@/components/home/DailyPulse.vue'
 
 const auth    = useAuthStore()
 const points  = usePointsStore()
 const ranking = useRankingStore()
+const { shareProgress } = useShareCard()
 
-const activeTab      = ref('progress')
-const volumeData     = ref([])
-const weightData     = ref([])
-const sessionHistory = ref([])
-const loading        = ref(true)
+const activeTab       = ref('progress')
+const volumeData      = ref([])
+const weightData      = ref([])
+const sessionHistory  = ref([])
+const loading         = ref(true)
 const historyExpanded = ref({})
+const showShareSheet  = ref(false)
+const heatmapDays     = ref([])   // últimos 90 días con estado de entrenamiento
 
 const tabs = [
   { id: 'progress',  label: 'Progreso' },
   { id: 'historial', label: 'Historial' },
   { id: 'close',     label: 'Cierre' },
-  { id: 'versos',    label: 'Versos' },
+  { id: 'daily',     label: 'Daily' },
 ]
 
 // Mapa de traducción de razones de puntos
@@ -55,9 +61,40 @@ onMounted(async () => {
     points.subscribe(),
     ranking.load(),
   ])
+  buildHeatmap()
   loading.value = false
   staggerIn('.prog-section', { delay: 0.15 })
 })
+
+function buildHeatmap() {
+  // Construir set de fechas con sesiones completadas
+  const trainedDates = new Set(
+    sessionHistory.value.map(s => s.date || s.id)
+  )
+  const days = []
+  const today = new Date()
+  for (let i = 89; i >= 0; i--) {
+    const d    = new Date(today)
+    d.setDate(today.getDate() - i)
+    const key  = d.toISOString().slice(0, 10)
+    days.push({ key, trained: trainedDates.has(key), isToday: i === 0 })
+  }
+  heatmapDays.value = days
+}
+
+const progressShareOptions = computed(() => [
+  {
+    id:    'progress',
+    icon:  ranking.currentLevel?.emoji || '🌱',
+    label: `Compartir mi progreso — ${ranking.currentLevel?.name || 'Iniciado'}`,
+    fn:    () => shareProgress({
+      ranking,
+      streak:        ranking.streak,
+      sessionsCount: sessionHistory.value.length,
+      volumeTotal:   volumeData.value.reduce((acc, d) => acc + d.value, 0),
+    }),
+  },
+])
 
 // Ruta corregida: training_logs (no 'sessions')
 async function loadVolumeHistory() {
@@ -195,6 +232,33 @@ const hasProgressData = computed(() => volumeData.value.length > 0 || weightData
             <p class="empty-sub">Completa sesiones de entrenamiento y registra tu peso para ver tus gráficas aquí.</p>
           </div>
 
+          <!-- Actividad: mapa de calor 90 días -->
+          <section class="card prog-section heatmap-card">
+            <div class="heatmap-header">
+              <p class="label-caps">Actividad — últimos 90 días</p>
+              <span class="heatmap-legend">
+                <span class="hm-dot rest" /> descanso
+                <span class="hm-dot trained" /> entrenado
+                <span class="hm-dot today" /> hoy
+              </span>
+            </div>
+            <div class="heatmap-grid">
+              <span
+                v-for="day in heatmapDays"
+                :key="day.key"
+                class="hm-cell"
+                :class="{
+                  'hm-trained': day.trained,
+                  'hm-today':   day.isToday,
+                }"
+                :title="day.key"
+              />
+            </div>
+            <p class="heatmap-count label-caps">
+              {{ heatmapDays.filter(d => d.trained).length }} sesiones en 90 días
+            </p>
+          </section>
+
           <!-- Puntos recientes -->
           <section v-if="points.log?.length" class="card prog-section points-card">
             <p class="label-caps" style="margin-bottom: var(--space-3)">Puntos recientes</p>
@@ -210,6 +274,12 @@ const hasProgressData = computed(() => volumeData.value.length > 0 || weightData
               </div>
             </div>
           </section>
+
+          <!-- Botón compartir progreso -->
+          <button class="btn btn-ghost prog-share-btn prog-section" @click="showShareSheet = true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+            Compartir mi progreso
+          </button>
 
         </template>
       </div>
@@ -279,13 +349,24 @@ const hasProgressData = computed(() => volumeData.value.length > 0 || weightData
         <DailyClose class="prog-section" @done="activeTab = 'progress'" />
       </div>
 
-      <!-- ═══ TAB: VERSOS ═════════════════════════════════════════ -->
-      <div v-else-if="activeTab === 'versos'">
+      <!-- ═══ TAB: DAILY ═══════════════════════════════════════════ -->
+      <div v-else-if="activeTab === 'daily'">
+        <DailyPulse class="prog-section" />
+
+        <div class="daily-divider prog-section">
+          <span class="label-caps">Versos guardados</span>
+        </div>
         <VerseLibrary />
       </div>
 
     </main>
     <BottomNav />
+
+    <ShareSheet
+      v-if="showShareSheet"
+      :options="progressShareOptions"
+      @close="showShareSheet = false"
+    />
   </div>
 </template>
 
@@ -403,5 +484,73 @@ const hasProgressData = computed(() => volumeData.value.length > 0 || weightData
   font-size: 10px; font-weight: 800; background: var(--warning-dim);
   color: var(--warning); padding: 1px 6px; border-radius: var(--radius-full);
   letter-spacing: 0.05em;
+}
+
+/* ── Heatmap ────────────────────────────────────────────── */
+.heatmap-card { padding: var(--space-4) var(--space-5); }
+.heatmap-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: var(--space-3);
+}
+.heatmap-legend {
+  display: flex; align-items: center; gap: var(--space-2);
+  font-size: 10px; color: var(--muted);
+}
+.hm-dot {
+  display: inline-block; width: 8px; height: 8px; border-radius: 2px;
+}
+.hm-dot.rest    { background: var(--faint); border: 1px solid var(--border); }
+.hm-dot.trained { background: var(--accent); }
+.hm-dot.today   { background: var(--accent); outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.heatmap-grid {
+  display: grid;
+  grid-template-columns: repeat(18, 1fr);
+  gap: 3px;
+}
+.hm-cell {
+  aspect-ratio: 1;
+  border-radius: 2px;
+  background: var(--faint);
+  border: 1px solid var(--border);
+  transition: transform 0.15s;
+}
+.hm-cell.hm-trained {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.hm-cell.hm-today {
+  background: var(--accent);
+  border-color: var(--accent);
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.heatmap-count {
+  margin-top: var(--space-3);
+  text-align: right;
+  color: var(--muted);
+}
+
+/* ── Share button ───────────────────────────────────────── */
+.prog-share-btn {
+  width: 100%;
+  display: flex; align-items: center; justify-content: center;
+  gap: var(--space-2);
+}
+
+/* ── Daily tab divider ──────────────────────────────────── */
+.daily-divider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--muted);
+  margin-top: var(--space-2);
+}
+.daily-divider::before,
+.daily-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
 }
 </style>

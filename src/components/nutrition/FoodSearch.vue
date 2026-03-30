@@ -40,6 +40,28 @@ const searchMode   = ref('local') // 'local' | 'api'
 
 let debounceTimer = null
 
+// ── Alimentos recientes (localStorage) ────────────────────────
+const RECENT_KEY   = 'disciplina_recent_foods'
+const RECENT_LIMIT = 12
+
+function loadRecentFoods() {
+  try {
+    return JSON.parse(localStorage.getItem(RECENT_KEY) || '[]')
+  } catch { return [] }
+}
+
+function saveToRecent(food) {
+  try {
+    const existing = loadRecentFoods()
+    const filtered = existing.filter(f => f.id !== food.id)
+    const updated  = [{ ...food }, ...filtered].slice(0, RECENT_LIMIT)
+    localStorage.setItem(RECENT_KEY, JSON.stringify(updated))
+    recentFoods.value = updated
+  } catch { /* ignore */ }
+}
+
+const recentFoods = ref(loadRecentFoods())
+
 // ── Resultados locales filtrados ───────────────────────────────
 const localResults = computed(() => {
   const q = searchQuery.value.toLowerCase().trim()
@@ -132,15 +154,17 @@ function selectFood(food) {
 
 function addFood() {
   if (!selected.value || !preview.value) return
-  emit('add-food', {
+  const entry = {
     food_id:  selected.value.id,
     name:     selected.value.name,
     amount_g: amount.value,
     ...preview.value,
-  })
-  selected.value = null
+  }
+  saveToRecent({ ...selected.value })
+  emit('add-food', entry)
+  selected.value    = null
   searchQuery.value = ''
-  amount.value   = 100
+  amount.value      = 100
 }
 </script>
 
@@ -176,6 +200,21 @@ function addFood() {
       </span>
       <span v-else-if="apiError" class="source-tag offline">Sin conexión — base local</span>
       <span v-else class="source-tag neutral">Base local</span>
+    </div>
+
+    <!-- ── Recientes (sólo sin query) ─────────────────────── -->
+    <div v-if="!selected && !searchQuery && recentFoods.length" class="fs-recents">
+      <p class="fs-section-label">Recientes</p>
+      <div class="recent-chips">
+        <button
+          v-for="food in recentFoods.slice(0, 6)"
+          :key="food.id"
+          class="recent-chip"
+          @click="selectFood(food)"
+        >
+          {{ food.name }}
+        </button>
+      </div>
     </div>
 
     <!-- ── Results list ────────────────────────────────────── -->
@@ -313,4 +352,22 @@ function addFood() {
 
 .fs-actions { display: flex; gap: var(--space-3); }
 .fs-actions .btn { flex: 1; }
+
+/* Recientes */
+.fs-recents { margin-bottom: var(--space-3); }
+.fs-section-label {
+  font-size: 10px; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.08em;
+  margin-bottom: var(--space-2);
+}
+.recent-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.recent-chip {
+  padding: var(--space-1) var(--space-3);
+  background: var(--faint-2); border: 1.5px solid var(--border);
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs); font-weight: 600; color: var(--text);
+  cursor: pointer; transition: var(--transition);
+  white-space: nowrap;
+}
+.recent-chip:hover { border-color: var(--accent); color: var(--accent); }
 </style>

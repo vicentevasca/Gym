@@ -78,6 +78,7 @@ export const usePointsStore = defineStore('points', () => {
     const balRef  = doc(db, 'users', auth.uid, 'points', 'balance')
     const histRef = collection(db, 'users', auth.uid, 'points_history')
 
+    const newHistRef = doc(histRef)  // auto-ID dentro de la transacción
     await runTransaction(db, async (tx) => {
       const snap   = await tx.get(balRef)
       const current = snap.exists() ? snap.data().balance : 0
@@ -90,7 +91,7 @@ export const usePointsStore = defineStore('points', () => {
         last_updated:   serverTimestamp(),
       })
 
-      await addDoc(histRef, {
+      tx.set(newHistRef, {
         type:          'earn',
         amount,
         reason,
@@ -115,6 +116,7 @@ export const usePointsStore = defineStore('points', () => {
     const balRef  = doc(db, 'users', auth.uid, 'points', 'balance')
     const histRef = collection(db, 'users', auth.uid, 'points_history')
 
+    const newHistRef = doc(histRef)
     await runTransaction(db, async (tx) => {
       const snap   = await tx.get(balRef)
       const current = snap.data().balance
@@ -127,7 +129,7 @@ export const usePointsStore = defineStore('points', () => {
         last_updated:   serverTimestamp(),
       })
 
-      await addDoc(histRef, {
+      tx.set(newHistRef, {
         type:          'redeem',
         amount:        totalCost,
         reward_label:  rewardLabel,
@@ -184,6 +186,7 @@ export const usePointsStore = defineStore('points', () => {
     const balRef  = doc(db, 'users', auth.uid, 'points', 'balance')
     const histRef = collection(db, 'users', auth.uid, 'points_history')
 
+    const newHistRef = doc(histRef)
     await runTransaction(db, async (tx) => {
       const snap    = await tx.get(balRef)
       const current = snap.exists() ? snap.data().balance : 0
@@ -196,7 +199,7 @@ export const usePointsStore = defineStore('points', () => {
         last_updated:   serverTimestamp(),
       })
 
-      await addDoc(histRef, {
+      tx.set(newHistRef, {
         type:          'decay',
         amount:        -(current - newBal),
         reason:        'días_sin_entrenar',

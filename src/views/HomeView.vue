@@ -4,6 +4,7 @@ import { useRouter }         from 'vue-router'
 import AppHeader             from '@/components/ui/AppHeader.vue'
 import BottomNav             from '@/components/ui/BottomNav.vue'
 import VerseScreen           from '@/components/verse/VerseScreen.vue'
+import ShareSheet            from '@/components/ui/ShareSheet.vue'
 import { useAuthStore }      from '@/stores/auth.store'
 import { useTrainingStore }  from '@/stores/training.store'
 import { useNutritionStore } from '@/stores/nutrition.store'
@@ -13,6 +14,7 @@ import { useRankingStore }   from '@/stores/ranking.store'
 import { useMoodStore }      from '@/stores/mood.store'
 import { useGendered }       from '@/composables/useGendered'
 import { staggerIn, fadeIn } from '@/composables/useAnimations'
+import { useShareCard }      from '@/composables/useShareCard'
 import MoodCheckin           from '@/components/home/MoodCheckin.vue'
 import MoodResponseModal     from '@/components/home/MoodResponseModal.vue'
 import ReflectionCard        from '@/components/home/ReflectionCard.vue'
@@ -28,11 +30,14 @@ const ranking   = useRankingStore()
 const mood      = useMoodStore()
 const router    = useRouter()
 const { greeting, g } = useGendered()
+const { shareProgress, shareNutrition } = useShareCard()
 
 const content          = ref(null)
 const showVerse        = ref(false)
 const showMoodModal    = ref(false)
+const showShareSheet   = ref(false)
 const lastMoodChecked  = ref(null)
+const loadingData      = ref(true)
 
 onMounted(async () => {
   fadeIn(content.value, { y: 0, duration: 0.4 })
@@ -44,12 +49,40 @@ onMounted(async () => {
     ranking.load(),
     mood.loadTodayMood(),
   ])
+  loadingData.value = false
   staggerIn('.home-card', { delay: 0.2, y: 20 })
-  // Show verse if not shown today
   if (!verse.shown && verse.verse) {
     setTimeout(() => { showVerse.value = true }, 600)
   }
 })
+
+async function quickAddWater() {
+  await nutrition.logWater(250)
+}
+
+const homeShareOptions = computed(() => [
+  {
+    id:    'progress',
+    icon:  ranking.currentLevel?.emoji || '🌱',
+    label: `Mi progreso — ${ranking.currentLevel?.name || 'Iniciado'} · ${ranking.xp} XP`,
+    fn:    () => shareProgress({
+      ranking,
+      streak: ranking.streak,
+      sessionsCount: 0,
+      volumeTotal:   ranking.bests?.best_volume ?? 0,
+    }),
+  },
+  {
+    id:    'nutrition',
+    icon:  '🥗',
+    label: `Nutrición de hoy — ${consumed.value.kcal} kcal`,
+    fn:    () => shareNutrition({
+      consumed: consumed.value,
+      targets:  nutrition.targets,
+      water_ml: nutrition.dayLog?.water_ml ?? 0,
+    }),
+  },
+])
 
 function onMoodChecked(level) {
   lastMoodChecked.value = level
@@ -79,6 +112,21 @@ const sessionProgress = computed(() => {
     <main class="page-content page-pad">
       <div ref="content">
 
+        <!-- Botón compartir flotante -->
+        <button
+          v-if="!loadingData"
+          type="button"
+          class="home-share-fab"
+          title="Compartir actividad"
+          @click="showShareSheet = true"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+            <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+            <polyline points="16 6 12 2 8 6"/>
+            <line x1="12" y1="2" x2="12" y2="15"/>
+          </svg>
+        </button>
+
         <!-- Greeting -->
         <div class="welcome-section">
           <div class="welcome-top">
@@ -98,7 +146,17 @@ const sessionProgress = computed(() => {
           </div>
         </div>
 
-        <div class="cards-grid">
+        <!-- Skeleton loading -->
+        <div v-if="loadingData" class="cards-grid">
+          <div class="skeleton-card home-card" />
+          <div class="metrics-row">
+            <div class="skeleton-card-sm home-card" />
+            <div class="skeleton-card-sm home-card" />
+            <div class="skeleton-card-sm home-card" />
+          </div>
+        </div>
+
+        <div v-else class="cards-grid">
 
           <!-- Session card -->
           <div class="card session-card home-card" @click="router.push('/training')">
@@ -111,6 +169,20 @@ const sessionProgress = computed(() => {
               <p class="session-exercises">{{ session.exercises?.length }} ejercicios</p>
               <div class="session-bar">
                 <div class="session-fill" :style="{ width: sessionProgress + '%' }" />
+              </div>
+              <!-- Preview de los primeros 3 ejercicios -->
+              <div v-if="session.exercises?.length" class="session-preview">
+                <span
+                  v-for="ex in session.exercises.slice(0, 3)"
+                  :key="ex.exercise_id || ex.name"
+                  class="preview-chip"
+                  :class="{ done: ex.completed }"
+                >
+                  {{ ex.completed ? '✓' : '' }} {{ ex.name }}
+                </span>
+                <span v-if="session.exercises.length > 3" class="preview-chip more">
+                  +{{ session.exercises.length - 3 }} más
+                </span>
               </div>
             </div>
             <!-- Sin rutina configurada -->
@@ -135,10 +207,21 @@ const sessionProgress = computed(() => {
               <p class="metric-value">{{ consumed.kcal }}</p>
               <div class="metric-bar"><div class="metric-fill" :style="{ width: kcalPct + '%' }" /></div>
             </div>
-            <div class="card-sm metric-card home-card" @click="router.push('/nutrition')">
-              <p class="metric-label label-caps">Agua</p>
-              <p class="metric-value">{{ Math.round((nutrition.dayLog?.water_ml ?? 0) / 100) / 10 }}L</p>
-              <div class="metric-bar"><div class="metric-fill water" :style="{ width: waterPct + '%' }" /></div>
+            <!-- Agua con botón rápido +250ml -->
+            <div class="card-sm metric-card water-metric home-card">
+              <div class="water-metric-top" @click="router.push('/nutrition')">
+                <p class="metric-label label-caps">Agua</p>
+                <p class="metric-value">{{ Math.round((nutrition.dayLog?.water_ml ?? 0) / 100) / 10 }}L</p>
+                <div class="metric-bar"><div class="metric-fill water" :style="{ width: waterPct + '%' }" /></div>
+              </div>
+              <button
+                type="button"
+                class="quick-water-btn"
+                title="Añadir 250ml"
+                @click.stop="quickAddWater"
+              >
+                +💧
+              </button>
             </div>
             <div class="card-sm metric-card home-card">
               <p class="metric-label label-caps">Puntos</p>
@@ -156,7 +239,7 @@ const sessionProgress = computed(() => {
             <p class="verse-tap label-caps">Toca para leer</p>
           </div>
 
-        </div>
+        </div><!-- /v-else -->
 
         <!-- ── NUEVO: Check-in emocional ── -->
         <section class="home-section">
@@ -197,6 +280,15 @@ const sessionProgress = computed(() => {
         :user-name="auth.alias"
         :streak="ranking.streak"
         @close="showMoodModal = false"
+      />
+    </Transition>
+
+    <!-- Share sheet -->
+    <Transition name="sheet">
+      <ShareSheet
+        v-if="showShareSheet"
+        :options="homeShareOptions"
+        @close="showShareSheet = false"
       />
     </Transition>
   </div>
@@ -295,4 +387,63 @@ const sessionProgress = computed(() => {
 /* Nuevas secciones */
 .home-section { margin-top: var(--space-5); }
 .section-label { margin-bottom: var(--space-3); }
+
+/* Share FAB */
+.home-share-fab {
+  position: fixed;
+  top: calc(var(--header-height) + var(--safe-top) + var(--space-2));
+  right: var(--space-4);
+  width: 34px; height: 34px; border-radius: var(--radius-full);
+  background: var(--surface); border: 1.5px solid var(--border);
+  color: var(--muted); display: flex; align-items: center; justify-content: center;
+  cursor: pointer; z-index: 90; transition: var(--transition);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+}
+.home-share-fab:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Skeleton loading */
+.skeleton-card {
+  height: 140px; border-radius: var(--radius-lg);
+  background: linear-gradient(90deg, var(--faint) 25%, var(--border) 50%, var(--faint) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-wave 1.4s ease-in-out infinite;
+}
+.skeleton-card-sm {
+  height: 80px; border-radius: var(--radius-lg);
+  background: linear-gradient(90deg, var(--faint) 25%, var(--border) 50%, var(--faint) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-wave 1.4s ease-in-out infinite;
+}
+@keyframes skeleton-wave {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Exercise preview chips */
+.session-preview {
+  display: flex; flex-wrap: wrap; gap: 5px; margin-top: var(--space-3);
+}
+.preview-chip {
+  font-size: 10px; font-weight: 600;
+  background: var(--faint); color: var(--muted);
+  border-radius: var(--radius-full); padding: 2px 8px;
+  border: 1px solid var(--border);
+  transition: var(--transition);
+}
+.preview-chip.done { background: var(--success-dim); color: var(--success); border-color: transparent; }
+.preview-chip.more { background: var(--accent-dim); color: var(--accent); border-color: transparent; }
+
+/* Agua rápida */
+.water-metric { padding: 0 !important; overflow: hidden; }
+.water-metric-top {
+  padding: var(--space-3) var(--space-3) var(--space-2);
+  cursor: pointer; flex: 1;
+}
+.quick-water-btn {
+  width: 100%; padding: var(--space-1);
+  background: var(--faint); border: none; border-top: 1px solid var(--border);
+  color: var(--text); font-size: 11px; font-weight: 700;
+  cursor: pointer; transition: var(--transition);
+}
+.quick-water-btn:hover { background: var(--accent-dim); color: var(--accent); }
 </style>

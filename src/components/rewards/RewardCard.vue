@@ -28,6 +28,16 @@ const daysLeft = computed(() => {
 
 // Dificultad visual
 const difficultyDots = computed(() => props.reward.difficulty_score || 3)
+
+// Progreso del reto activo: días transcurridos / total
+const challengeProgress = computed(() => {
+  if (!props.reward.isActive || !props.reward.activeChallenge) return null
+  const challenge  = props.reward.activeChallenge
+  const total      = challenge.days ?? props.reward.days ?? 1
+  const elapsed    = total - (daysLeft.value ?? 0)
+  const pct        = Math.min(Math.round((elapsed / total) * 100), 100)
+  return { elapsed: Math.max(elapsed, 0), total, pct }
+})
 </script>
 
 <template>
@@ -70,15 +80,29 @@ const difficultyDots = computed(() => props.reward.difficulty_score || 3)
       </div>
     </div>
 
-    <!-- Estado: activo con días restantes -->
-    <div v-if="reward.isActive" class="rc-active-bar">
-      <div class="rc-active-info">
-        <div class="rc-active-pulse" />
-        <span>Reto en curso</span>
+    <!-- Estado: activo con días restantes + barra de progreso -->
+    <div v-if="reward.isActive" class="rc-active-block">
+      <div class="rc-active-bar">
+        <div class="rc-active-info">
+          <div class="rc-active-pulse" />
+          <span>Reto en curso</span>
+        </div>
+        <span v-if="daysLeft !== null" class="rc-days-left">
+          {{ daysLeft }} {{ daysLeft === 1 ? 'día' : 'días' }} restantes
+        </span>
       </div>
-      <span class="rc-days-left" v-if="daysLeft !== null">
-        {{ daysLeft }} {{ daysLeft === 1 ? 'día' : 'días' }} restantes
-      </span>
+      <!-- Barra de progreso de días -->
+      <div v-if="challengeProgress" class="rc-progress-wrap">
+        <div class="rc-progress-track">
+          <div
+            class="rc-progress-fill"
+            :style="{ width: challengeProgress.pct + '%' }"
+          />
+        </div>
+        <span class="rc-progress-label">
+          Día {{ challengeProgress.elapsed }} de {{ challengeProgress.total }} · {{ challengeProgress.pct }}%
+        </span>
+      </div>
     </div>
 
     <!-- Estado: completado -->
@@ -214,6 +238,7 @@ const difficultyDots = computed(() => props.reward.difficulty_score || 3)
 }
 
 /* Estado activo */
+.rc-active-block { display: flex; flex-direction: column; gap: var(--space-2); }
 .rc-active-bar {
   display: flex;
   justify-content: space-between;
@@ -226,6 +251,19 @@ const difficultyDots = computed(() => props.reward.difficulty_score || 3)
   font-weight: 600;
 }
 .rc-active-info { display: flex; align-items: center; gap: var(--space-2); }
+.rc-progress-wrap { display: flex; flex-direction: column; gap: 4px; }
+.rc-progress-track {
+  height: 6px; background: var(--faint); border-radius: 3px; overflow: hidden;
+}
+.rc-progress-fill {
+  height: 100%; background: var(--cat-color, var(--accent));
+  border-radius: 3px; transition: width 0.5s ease;
+  min-width: 6px;
+}
+.rc-progress-label {
+  font-size: 10px; color: var(--muted); font-family: var(--font-mono);
+  text-align: right;
+}
 .rc-active-pulse {
   width: 8px; height: 8px; border-radius: 50%;
   background: var(--accent);

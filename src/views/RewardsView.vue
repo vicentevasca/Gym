@@ -6,18 +6,23 @@ import { usePointsStore }      from '@/stores/points.store'
 import { useRankingStore }     from '@/stores/ranking.store'
 import { useGendered }         from '@/composables/useGendered'
 import { staggerIn }           from '@/composables/useAnimations'
+import { useShareCard }        from '@/composables/useShareCard'
 import AppHeader               from '@/components/ui/AppHeader.vue'
 import BottomNav               from '@/components/ui/BottomNav.vue'
+import ShareSheet              from '@/components/ui/ShareSheet.vue'
 import RewardsQuestionnaire    from '@/components/rewards/RewardsQuestionnaire.vue'
 import RewardCard              from '@/components/rewards/RewardCard.vue'
 import RankCard                from '@/components/rewards/RankCard.vue'
 
-const rewards = useRewardsStore()
-const points  = usePointsStore()
-const ranking = useRankingStore()
-const { g }   = useGendered()
+const rewards    = useRewardsStore()
+const points     = usePointsStore()
+const ranking    = useRankingStore()
+const { g }      = useGendered()
+const { shareRank, shareChallenge } = useShareCard()
 
-const tab = ref('rangos')   // 'rangos' | 'retos' | 'puntos'
+const tab             = ref('rangos')
+const showShareSheet  = ref(false)
+const lastCompleted   = ref(null)   // último reto completado para compartir
 
 onMounted(async () => {
   await Promise.all([
@@ -48,9 +53,33 @@ async function handleStart(reward) {
 
 async function handleComplete(challenge) {
   await rewards.completeChallenge(challenge.docId, points)
+  lastCompleted.value = challenge
   navigator.vibrate?.([50, 30, 80])
   gsap.from('.category-section', { opacity: 0.5, duration: 0.4 })
+  showShareSheet.value = true
 }
+
+const rankShareOptions = computed(() => [
+  {
+    id:    'rank',
+    icon:  ranking.currentLevel?.emoji || '🌱',
+    label: `Compartir mi rango — ${ranking.currentLevel?.name || 'Iniciado'}`,
+    fn:    () => shareRank({ ranking, streak: ranking.streak }),
+  },
+])
+
+const challengeShareOptions = computed(() => {
+  const opts = []
+  if (lastCompleted.value) {
+    opts.push({
+      id:    'challenge',
+      icon:  lastCompleted.value.category_emoji || '🏆',
+      label: `Compartir reto: ${lastCompleted.value.reward_title || 'completado'}`,
+      fn:    () => shareChallenge({ challenge: lastCompleted.value, ranking, streak: ranking.streak }),
+    })
+  }
+  return opts
+})
 
 const groups         = computed(() => rewards.rewardsByCategory)
 const activeCount    = computed(() => rewards.activeRewards?.length ?? 0)
@@ -100,6 +129,16 @@ function reasonLabel(r) {
 
         <!-- Rank card -->
         <RankCard class="tab-section" />
+
+        <!-- Botón compartir rango -->
+        <button
+          type="button"
+          class="btn btn-secondary share-rank-btn tab-section"
+          @click="showShareSheet = true"
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+          Compartir mi rango
+        </button>
 
         <!-- Personal bests -->
         <section class="card pb-card tab-section">
@@ -311,6 +350,15 @@ function reasonLabel(r) {
     </main>
 
     <BottomNav />
+
+    <!-- Share sheet -->
+    <Transition name="sheet">
+      <ShareSheet
+        v-if="showShareSheet"
+        :options="lastCompleted ? challengeShareOptions : rankShareOptions"
+        @close="showShareSheet = false; lastCompleted = null"
+      />
+    </Transition>
   </div>
 </template>
 
@@ -394,6 +442,12 @@ function reasonLabel(r) {
   letter-spacing: var(--tracking-snug);
 }
 .rewards-list { display: flex; flex-direction: column; gap: var(--space-3); }
+
+/* Share rank button */
+.share-rank-btn {
+  width: 100%; display: flex; align-items: center; justify-content: center;
+  gap: var(--space-2);
+}
 
 /* Reset */
 .reset-section {

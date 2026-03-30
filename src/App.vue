@@ -4,16 +4,22 @@ import { gsap }            from 'gsap'
 import { useAuthStore }    from '@/stores/auth.store'
 import { useRankingStore } from '@/stores/ranking.store'
 import { useTheme }        from '@/composables/useTheme'
+import { useNotifications } from '@/composables/useNotifications'
 import LevelUpModal        from '@/components/rewards/LevelUpModal.vue'
 import ToastContainer      from '@/components/ui/ToastContainer.vue'
 
 const auth    = useAuthStore()
 const ranking = useRankingStore()
 const { mode } = useTheme()
+const notif   = useNotifications()
 
 onMounted(async () => {
   await auth.init()
-  if (auth.isLoggedIn) await ranking.load()
+  if (auth.isLoggedIn) {
+    await ranking.load()
+    // Small delay so training store loads first
+    setTimeout(() => notif.checkDailyReminder(), 3000)
+  }
 })
 
 // ── Transiciones de vista con GSAP ────────────────────────────

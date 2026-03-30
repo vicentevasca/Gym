@@ -93,7 +93,7 @@ export const useVerseStore = defineStore('verse', () => {
     const q    = query(collection(db, 'users', auth.uid, 'verse_library'))
     const snap = await getDocs(q)
     library.value = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-      .sort((a, b) => b.original_date.localeCompare(a.original_date))
+      .sort((a, b) => (b.original_date ?? '').localeCompare(a.original_date ?? ''))
   }
 
   return { verse, library, loading, shown, loadTodayVerse, markShown, saveVerse, loadLibrary }

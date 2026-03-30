@@ -218,10 +218,49 @@ export const useNutritionStore = defineStore('nutrition', () => {
     }
   }
 
+  // ── Copiar comidas de ayer ─────────────────────────────
+
+  async function copyFromYesterday() {
+    if (!auth.uid || !dayLog.value) return
+    try {
+      const yesterday = new Date()
+      yesterday.setDate(yesterday.getDate() - 1)
+      const yKey   = yesterday.toISOString().slice(0, 10)
+      const yRef   = doc(db, 'users', auth.uid, 'nutrition_logs', yKey)
+      const ySnap  = await getDoc(yRef)
+      if (!ySnap.exists()) return false
+
+      const yData  = ySnap.data()
+      const yMeals = yData.meals || []
+
+      // Merge: añadir los foods de ayer a las comidas de hoy (misma meal id)
+      const todayKey = toDateKey()
+      const logRef   = doc(db, 'users', auth.uid, 'nutrition_logs', todayKey)
+
+      const merged = dayLog.value.meals.map(meal => {
+        const yMeal = yMeals.find(m => m.id === meal.id)
+        if (!yMeal || !yMeal.foods?.length) return meal
+        // Re-stamp food_id to avoid duplicates on repeated copies
+        const newFoods = yMeal.foods.map(f => ({
+          ...f,
+          food_id: `copy-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        }))
+        return { ...meal, foods: [...(meal.foods || []), ...newFoods] }
+      })
+
+      await updateDoc(logRef, { meals: merged })
+      dayLog.value = { ...dayLog.value, meals: merged }
+      return true
+    } catch (e) {
+      console.warn('[nutrition] copyFromYesterday error:', e)
+      return false
+    }
+  }
+
   return {
     dayLog, plan, targets, loading, consumed, percentages,
     dietPlan, history,
     loadDayLog, addFood, removeFood, logWater,
-    saveDietPlan, loadDietPlan, loadHistory,
+    saveDietPlan, loadDietPlan, loadHistory, copyFromYesterday,
   }
 })

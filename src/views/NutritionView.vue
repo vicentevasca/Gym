@@ -4,24 +4,30 @@ import { useNutritionStore } from '@/stores/nutrition.store'
 import { useTrainingStore }  from '@/stores/training.store'
 import { staggerIn }         from '@/composables/useAnimations'
 import { generateDietPlan }  from '@/utils/dietPlanner'
-import AppHeader     from '@/components/ui/AppHeader.vue'
-import BottomNav     from '@/components/ui/BottomNav.vue'
-import MacroRing     from '@/components/nutrition/MacroRing.vue'
-import MealLogger    from '@/components/nutrition/MealLogger.vue'
-import DietWizard    from '@/components/nutrition/DietWizard.vue'
-import DietPlanCard  from '@/components/nutrition/DietPlanCard.vue'
+import { useShareCard }      from '@/composables/useShareCard'
+import AppHeader      from '@/components/ui/AppHeader.vue'
+import BottomNav      from '@/components/ui/BottomNav.vue'
+import MacroRing      from '@/components/nutrition/MacroRing.vue'
+import MealLogger     from '@/components/nutrition/MealLogger.vue'
+import DietWizard     from '@/components/nutrition/DietWizard.vue'
+import DietPlanCard   from '@/components/nutrition/DietPlanCard.vue'
 import CalorieHistory from '@/components/nutrition/CalorieHistory.vue'
+import ShareSheet     from '@/components/ui/ShareSheet.vue'
 
 // ── Stores ────────────────────────────────────────────────────────────────
 
 const nutrition = useNutritionStore()
 const training  = useTrainingStore()
+const { shareNutrition } = useShareCard()
 
 // ── State ─────────────────────────────────────────────────────────────────
 
-const activeTab  = ref('registro')
-const showWizard = ref(false)
-const saving     = ref(false)
+const activeTab       = ref('registro')
+const showWizard      = ref(false)
+const saving          = ref(false)
+const showShareSheet  = ref(false)
+const copyingYesterday = ref(false)
+const copiedYesterday  = ref(false)
 
 // ── Init ──────────────────────────────────────────────────────────────────
 
@@ -61,6 +67,34 @@ async function handleGenerate(params) {
     saving.value = false
   }
 }
+
+async function handleCopyYesterday() {
+  if (copyingYesterday.value) return
+  copyingYesterday.value = true
+  try {
+    const ok = await nutrition.copyFromYesterday()
+    if (ok) {
+      copiedYesterday.value = true
+      setTimeout(() => { copiedYesterday.value = false }, 3000)
+    }
+  } finally {
+    copyingYesterday.value = false
+  }
+}
+
+const nutritionShareOptions = computed(() => [
+  {
+    id:    'nutrition',
+    icon:  '🥗',
+    label: 'Compartir mi nutrición de hoy',
+    fn:    () => shareNutrition({
+      consumed:  consumed.value,
+      targets:   targets.value,
+      water_ml:  water.value,
+      date:      new Date().toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'long' }),
+    }),
+  },
+])
 
 const TABS = [
   { id: 'registro',  label: 'Registro' },
@@ -134,6 +168,27 @@ const TABS = [
               </div>
             </div>
           </section>
+
+          <!-- Acciones rápidas del registro -->
+          <div class="registro-actions">
+            <button
+              type="button"
+              class="btn btn-ghost reg-action-btn"
+              :disabled="copyingYesterday"
+              @click="handleCopyYesterday"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              {{ copiedYesterday ? '¡Copiado!' : copyingYesterday ? 'Copiando…' : 'Copiar de ayer' }}
+            </button>
+            <button
+              type="button"
+              class="btn btn-ghost reg-action-btn"
+              @click="showShareSheet = true"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+              Compartir
+            </button>
+          </div>
 
           <!-- Meal loggers -->
           <section
@@ -215,6 +270,12 @@ const TABS = [
       :routine="routine"
       @generate="handleGenerate"
       @close="showWizard = false"
+    />
+
+    <ShareSheet
+      v-if="showShareSheet"
+      :options="nutritionShareOptions"
+      @close="showShareSheet = false"
     />
   </div>
 </template>
@@ -371,4 +432,14 @@ const TABS = [
 .empty-icon  { font-size: 44px; line-height: 1; }
 .empty-title { font-size: var(--text-lg); font-weight: 700; color: var(--text); }
 .empty-sub   { font-size: var(--text-sm); color: var(--muted); line-height: 1.6; max-width: 280px; }
+
+/* ── Registro quick actions ───────────────────────────────── */
+.registro-actions {
+  display: flex; gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+.reg-action-btn {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  gap: var(--space-2); font-size: var(--text-xs);
+}
 </style>
