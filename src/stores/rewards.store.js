@@ -363,10 +363,18 @@ export const useRewardsStore = defineStore('rewards', () => {
     return Object.values(groups)
   })
 
+  function clearState() {
+    questionnaire.value       = null
+    personalizedRewards.value = []
+    activeRewards.value       = []
+    completedRewards.value    = []
+    loading.value             = false
+  }
+
   return {
     questionnaire, questionnaireCompleted, personalizedRewards,
     activeRewards, completedRewards, rewardsByCategory, loading,
     loadRewardsProfile, saveQuestionnaire, startChallenge,
-    completeChallenge, resetQuestionnaire,
+    completeChallenge, resetQuestionnaire, clearState,
   }
 })

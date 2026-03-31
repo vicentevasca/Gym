@@ -219,10 +219,21 @@ export const useRankingStore = defineStore('ranking', () => {
   function clearLevelUp() { justLeveledUp.value = null }
   function consumeDecay()  { const d = pendingDecay.value; pendingDecay.value = 0; return d }
 
+  function clearState() {
+    data.value = {
+      xp: 0, streak: 0, last_trained: null, missed_days: 0,
+      personal_bests: { best_volume: 0, best_streak: 0 }, last_decay_date: null,
+    }
+    loading.value       = false
+    justLeveledUp.value = null
+    pendingDecay.value  = 0
+    _loaded             = false
+  }
+
   return {
     data, loading, justLeveledUp, pendingDecay,
     xp, streak, bests,
     currentLevel, nextLevel, levelProgress, pointsToNext,
-    load, addXP, recordTraining, clearLevelUp, consumeDecay,
+    load, addXP, recordTraining, clearLevelUp, consumeDecay, clearState,
   }
 })

@@ -732,3 +732,139 @@ function formatDayName(dateStr) {
   const d = new Date(dateStr + 'T12:00:00')
   return d.toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' })
 }
+
+// ─────────────────────────────────────────────────────────────────
+// EXPORTS PARA "A TU MEDIDA"
+// ─────────────────────────────────────────────────────────────────
+
+export const BODY_FOCUS = [
+  { id: 'full_body',     label: 'Full body equilibrado', icon: '⚖️', description: 'Trabaja todo el cuerpo de forma balanceada' },
+  { id: 'tren_superior', label: 'Tren superior',         icon: '💪', description: 'Pecho, espalda, hombros y brazos' },
+  { id: 'tren_inferior', label: 'Tren inferior',         icon: '🦵', description: 'Cuádriceps, isquios, glúteos y pantorrillas' },
+  { id: 'core',          label: 'Core y abdomen',        icon: '🎯', description: 'Estabilidad central y fuerza funcional' },
+]
+
+export const EQUIPMENT_OPTIONS = [
+  { id: 'gym_completo',  label: 'Gimnasio completo',  icon: '🏋️', description: 'Máquinas, barras, mancuernas — acceso completo' },
+  { id: 'mancuernas',    label: 'Pesas libres',        icon: '🏅', description: 'Mancuernas y barras en casa o gym básico' },
+  { id: 'peso_corporal', label: 'Peso corporal',       icon: '🤸', description: 'Sin equipamiento adicional' },
+  { id: 'bandas',        label: 'Bandas / TRX',        icon: '🎗️', description: 'Resistencia con bandas elásticas' },
+]
+
+export const CARDIO_LEVELS = [
+  { id: 'bajo',     label: 'Me canso subiendo escaleras',  icon: '😮‍💨' },
+  { id: 'basico',   label: 'Camino 30 min sin problemas',  icon: '🚶' },
+  { id: 'moderado', label: 'Hago cardio regularmente',     icon: '🏃' },
+  { id: 'alto',     label: 'Atleta / deporte frecuente',   icon: '⚡' },
+]
+
+export const STYLE_PREFERENCES = [
+  { id: 'auto',        label: 'Recomiéndame',     icon: '✨', description: 'El sistema elige lo mejor para tu perfil' },
+  { id: 'hipertrofia', label: 'Gym (pesas)',       icon: '💪', description: 'Máquinas y pesas libres' },
+  { id: 'calistenia',  label: 'Calistenia',        icon: '🤸', description: 'Movimientos con tu propio peso' },
+  { id: 'hiit',        label: 'HIIT',              icon: '⚡', description: 'Intervalos de alta intensidad' },
+  { id: 'híbrido',     label: 'Híbrido',           icon: '🔀', description: 'Combina pesas, cardio y movilidad' },
+  { id: 'yoga',        label: 'Yoga / Pilates',    icon: '🧘', description: 'Flexibilidad, respiración y core' },
+]
+
+/**
+ * Asignación óptima de días basada en ACSM/NSCA/WHO.
+ * Incluye justificación científica y fuentes para mostrar en la UI.
+ */
+export const DAY_ASSIGNMENT_SCIENCE = {
+  2: {
+    days: [1, 4],
+    dayLabels: ['Lun', 'Jue'],
+    justification: 'Lunes–Jueves proporciona 72 horas de recuperación entre sesiones, superando el mínimo recomendado (48 h) y optimizando la síntesis proteica muscular post-entrenamiento. Ideal para principiantes e intermedios con vida activa.',
+    sources: [
+      { ref: 'ACSM (2026)', detail: 'Resistance Training Guidelines Update — mínimo 48 h de recuperación por grupo muscular' },
+      { ref: 'NSCA Foundations of Fitness Programming', detail: 'Cap. 17 — Principios de frecuencia para programas de 2 días/semana' },
+    ],
+  },
+  3: {
+    days: [1, 3, 5],
+    dayLabels: ['Lun', 'Mié', 'Vie'],
+    justification: 'Lunes–Miércoles–Viernes es el esquema de 3 días con mayor respaldo en la literatura. Garantiza 48 h de recuperación entre sesiones. La WHO (2020) recomienda ≥2 días/semana de fortalecimiento muscular; este protocolo lo supera con distribución simétrica óptima.',
+    sources: [
+      { ref: 'WHO Physical Activity Guidelines (2020)', detail: '≥2 días/semana de actividades de fortalecimiento muscular para adultos' },
+      { ref: 'ACSM (2026)', detail: 'Frecuencia óptima para principiantes e intermedios: 3 días no consecutivos' },
+      { ref: 'Schoenfeld et al. (2017) — JSCR', detail: 'Relación dosis–respuesta entre volumen semanal e incremento de masa muscular' },
+    ],
+  },
+  4: {
+    days: [1, 2, 4, 5],
+    dayLabels: ['Lun', 'Mar', 'Jue', 'Vie'],
+    justification: 'Esquema Upper/Lower en 4 días. Permite trabajar cada grupo muscular 2×/semana —la frecuencia óptima para hipertrofia según meta-análisis—. El miércoles actúa como descanso activo que divide la carga semanal y facilita la recuperación del sistema nervioso central.',
+    sources: [
+      { ref: 'Schoenfeld et al. (2016) — JSCR', detail: 'Meta-análisis: entrenar cada grupo muscular 2×/semana es superior a 1×/semana para hipertrofia' },
+      { ref: 'NSCA-CSCS, Cap. 17', detail: 'Upper/Lower split como protocolo estándar para nivel intermedio' },
+      { ref: 'ACSM (2026)', detail: 'Frecuencia 2×/semana por grupo como recomendación general de evidencia' },
+    ],
+  },
+  5: {
+    days: [1, 2, 3, 5, 6],
+    dayLabels: ['Lun', 'Mar', 'Mié', 'Vie', 'Sáb'],
+    justification: 'Esquema de 5 días con descanso estratégico jueves y domingo. El bloque Lun–Mié permite acumular volumen en la primera mitad de la semana; el descanso del jueves facilita la recuperación del SNC antes del bloque Vie–Sáb de alta intensidad.',
+    sources: [
+      { ref: 'NSCA Foundations of Fitness Programming', detail: 'Periodización para atletas intermedios-avanzados con bloques semanales' },
+      { ref: 'Huberman Lab — Foundational Fitness Protocol (2023)', detail: 'Estructura semanal con 1 foco por día y descanso estratégico intermedio' },
+      { ref: 'ACSM (2026)', detail: 'Manejo del volumen total semanal en programas de alta frecuencia' },
+    ],
+  },
+  6: {
+    days: [1, 2, 3, 4, 5, 6],
+    dayLabels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'],
+    justification: 'PPL × 2: cada grupo muscular se trabaja 2×/semana con descanso dominical completo para recuperación sistémica. Protocolo avanzado que requiere buena capacidad de recuperación. No recomendado para principiantes ni con alto estrés o poco sueño.',
+    sources: [
+      { ref: 'ACSM (2026)', detail: 'Volumen y frecuencia en protocolos avanzados; descanso de 1 día completo obligatorio' },
+      { ref: 'NSCA-CSCS', detail: 'PPL × 2 como esquema estándar para nivel avanzado' },
+      { ref: 'Huberman Lab — Foundational Fitness Protocol (2023)', detail: 'Día de descanso completo semanal como pilar irremplazable de recuperación' },
+    ],
+  },
+}
+
+/**
+ * Retorna los días de entrenamiento óptimos según días/semana.
+ * Basado en guías ACSM/NSCA para recuperación muscular.
+ * @param {number} daysPerWeek
+ * @returns {number[]} Índices de días (0=Dom, 1=Lun, ..., 6=Sáb)
+ */
+export function assignOptimalDays(daysPerWeek) {
+  const config = DAY_ASSIGNMENT_SCIENCE[daysPerWeek] || DAY_ASSIGNMENT_SCIENCE[3]
+  return [...config.days]
+}
+
+/**
+ * Determina el estilo de entrenamiento a partir de los parámetros de "a tu medida".
+ */
+export function getStyleFromMedidaParams({ equipment, goal, style_preference }) {
+  if (style_preference && style_preference !== 'auto') return style_preference
+  if (equipment === 'peso_corporal' || equipment === 'bandas') {
+    if (goal === 'perder_grasa' || goal === 'mejorar_condicion') return 'hiit'
+    return 'calistenia'
+  }
+  if (goal === 'fuerza_maxima') return 'fuerza'
+  if (goal === 'flexibilidad')  return 'yoga'
+  if (goal === 'perder_grasa')  return 'híbrido'
+  return 'hipertrofia'
+}
+
+/**
+ * Mapea el nivel de experiencia detallado al estándar del generador.
+ */
+export function mapExperienceLevel(level) {
+  if (level === 'novato' || level === 'principiante') return 'principiante'
+  if (level === 'avanzado') return 'avanzado'
+  return 'intermedio'
+}
+
+/**
+ * Mapea respuestas del screening de salud a programas especiales sugeridos.
+ */
+export function mapHealthToPrograms(screening) {
+  const programs = []
+  if (screening.back_pain)     programs.push('dolor_espalda')
+  if (screening.joint_injury)  programs.push('movilidad')
+  if (screening.respiratory)   programs.push('salud_pulmonar')
+  return programs
+}

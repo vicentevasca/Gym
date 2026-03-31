@@ -102,6 +102,12 @@ export const useMoodStore = defineStore('mood', () => {
     }
   }
 
+  function clearState() {
+    todayMood.value   = null
+    moodHistory.value = []
+    loading.value     = false
+  }
+
   return {
     todayMood,
     moodHistory,
@@ -110,5 +116,6 @@ export const useMoodStore = defineStore('mood', () => {
     loadTodayMood,
     saveMood,
     loadMoodHistory,
+    clearState,
   }
 })

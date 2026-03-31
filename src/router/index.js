@@ -68,6 +68,24 @@ const routes = [
     meta: { requiresAuth: true, requiresOnboarding: true },
   },
   {
+    path: '/training/choice',
+    name: 'RoutineChoice',
+    component: () => import('@/views/RoutineChoiceView.vue'),
+    meta: { requiresAuth: true, requiresOnboarding: true },
+  },
+  {
+    path: '/training/nueva',
+    name: 'NewRoutine',
+    component: () => import('@/views/NewRoutineView.vue'),
+    meta: { requiresAuth: true, requiresOnboarding: true },
+  },
+  {
+    path: '/training/medida',
+    name: 'MedidaSetup',
+    component: () => import('@/views/MedidaSetupView.vue'),
+    meta: { requiresAuth: true, requiresOnboarding: true },
+  },
+  {
     path: '/rewards',
     name: 'Rewards',
     component: () => import('@/views/RewardsView.vue'),

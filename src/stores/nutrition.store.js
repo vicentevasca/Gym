@@ -257,10 +257,19 @@ export const useNutritionStore = defineStore('nutrition', () => {
     }
   }
 
+  function clearState() {
+    dayLog.value   = null
+    plan.value     = null
+    loading.value  = false
+    dietPlan.value = null
+    history.value  = []
+  }
+
   return {
     dayLog, plan, targets, loading, consumed, percentages,
     dietPlan, history,
     loadDayLog, addFood, removeFood, logWater,
     saveDietPlan, loadDietPlan, loadHistory, copyFromYesterday,
+    clearState,
   }
 })

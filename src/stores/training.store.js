@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import {
-  doc, getDoc, setDoc, updateDoc,
+  doc, getDoc, setDoc, updateDoc, deleteDoc,
   collection, getDocs, onSnapshot, serverTimestamp,
 } from 'firebase/firestore'
 import { db } from '@/firebase/config'
@@ -9,7 +9,7 @@ import { useAuthStore }   from './auth.store'
 import { usePointsStore } from './points.store'
 import { useRankingStore } from './ranking.store'
 import { toDateKey }      from '@/utils/formatters'
-import { generateSession, checkProgression } from '@/utils/progressionEngine'
+import { checkProgression } from '@/utils/progressionEngine'
 import { generateRoutine, getSessionForDate } from '@/utils/routineGenerator'
 import { useToast } from '@/composables/useToast'
 
@@ -23,6 +23,7 @@ export const useTrainingStore = defineStore('training', () => {
   const newRecord           = ref(null)
   const sessionPointsEarned = ref(0)  // acumulado de sets+ejercicios en la sesión actual
   const routine             = ref(null)
+  const routineLibrary      = ref([])   // todas las rutinas guardadas del usuario
   let sessionTimer          = null
   let sessionUnsub          = null
 
@@ -66,8 +67,77 @@ export const useTrainingStore = defineStore('training', () => {
     const generated = generateRoutine(params, recs)
     generated.id   = Date.now().toString()
     generated.name = `Mi rutina — ${params.style}`
+    // Guardar en biblioteca
+    await setDoc(doc(db, 'users', auth.uid, 'routine_library', generated.id), {
+      ...generated,
+      created_at: serverTimestamp(),
+    })
+    // Activar (escribe en routines/current)
     await saveRoutine(generated)
+    // Refrescar biblioteca en memoria
+    await loadRoutineLibrary()
     return generated
+  }
+
+  async function updateActiveRoutine(params) {
+    // Actualiza la rutina activa manteniendo su id original
+    const recs = Object.keys(records.value).length ? records.value : await loadRecords()
+    const generated = generateRoutine(params, recs)
+    generated.id   = routine.value?.id || Date.now().toString()
+    generated.name = routine.value?.name || `Mi rutina — ${params.style}`
+    // Actualizar en biblioteca
+    await setDoc(doc(db, 'users', auth.uid, 'routine_library', generated.id), {
+      ...generated,
+      created_at: serverTimestamp(),
+    })
+    await saveRoutine(generated)
+    await loadRoutineLibrary()
+    return generated
+  }
+
+  // ── Biblioteca de rutinas ──────────────────────────────────
+
+  async function loadRoutineLibrary() {
+    if (!auth.uid) return
+    try {
+      const snap = await getDocs(collection(db, 'users', auth.uid, 'routine_library'))
+      const list = []
+      snap.forEach(d => list.push({ ...d.data(), id: d.id }))
+      // Migración: si la biblioteca está vacía pero hay rutina activa, la añadimos
+      if (list.length === 0 && routine.value) {
+        const id = routine.value.id || Date.now().toString()
+        await setDoc(doc(db, 'users', auth.uid, 'routine_library', id), {
+          ...routine.value,
+          id,
+          created_at: serverTimestamp(),
+        })
+        list.push({ ...routine.value, id })
+        if (!routine.value.id) routine.value = { ...routine.value, id }
+      }
+      list.sort((a, b) => (b.created_at?.seconds || 0) - (a.created_at?.seconds || 0))
+      routineLibrary.value = list
+    } catch (e) {
+      console.warn('[training] No se pudo cargar la biblioteca:', e)
+    }
+  }
+
+  async function activateRoutine(libraryItem) {
+    await saveRoutine(libraryItem)
+  }
+
+  async function deleteRoutineFromLibrary(id) {
+    if (!auth.uid) return
+    await deleteDoc(doc(db, 'users', auth.uid, 'routine_library', id))
+    routineLibrary.value = routineLibrary.value.filter(r => r.id !== id)
+    // Si era la activa, limpiar
+    if (routine.value?.id === id) {
+      await deleteDoc(doc(db, 'users', auth.uid, 'routines', 'current'))
+      routine.value = null
+      // Activar la más reciente de la biblioteca si existe
+      if (routineLibrary.value.length > 0) {
+        await activateRoutine(routineLibrary.value[0])
+      }
+    }
   }
 
   // ── Cargar sesión del día ──────────────────────────────────
@@ -83,27 +153,18 @@ export const useTrainingStore = defineStore('training', () => {
       if (snap.exists()) {
         session.value = snap.data()
       } else {
-        // Cargar rutina si no está en memoria
+        // Solo generar sesión si el usuario tiene una rutina configurada
         if (!routine.value) await loadRoutine()
 
-        const recs = await loadRecords()
-
-        let generated = null
-
-        // Intentar generar desde la rutina personalizada
         if (routine.value) {
-          generated = getSessionForDate(routine.value, dateKey, recs)
+          const recs      = await loadRecords()
+          const generated = getSessionForDate(routine.value, dateKey, recs)
+          if (generated) {
+            await setDoc(logRef, generated)
+            session.value = generated
+          }
         }
-
-        // Fallback al generador legacy
-        if (!generated) {
-          generated = generateSession(auth.profile, dateKey, recs)
-        }
-
-        if (generated) {
-          await setDoc(logRef, generated)
-          session.value = generated
-        }
+        // Sin rutina → session queda null; la UI muestra el empty state
       }
 
       // Listener realtime
@@ -299,12 +360,25 @@ export const useTrainingStore = defineStore('training', () => {
     sessionUnsub?.()
   }
 
+  function clearState() {
+    cleanup()
+    session.value             = null
+    records.value             = {}
+    elapsedSeconds.value      = 0
+    loading.value             = false
+    newRecord.value           = null
+    sessionPointsEarned.value = 0
+    routine.value             = null
+    routineLibrary.value      = []
+  }
+
   return {
     session, todaySession, progressionSuggestions,
     records, elapsedSeconds, loading, newRecord, sessionPointsEarned,
     isActive, isComplete, progressPct,
-    routine,
-    loadTodaySession, loadRecords, completeSerie, startSession, completeSession, cleanup,
-    loadRoutine, saveRoutine, createAutoRoutine,
+    routine, routineLibrary,
+    loadTodaySession, loadRecords, completeSerie, startSession, completeSession, cleanup, clearState,
+    loadRoutine, saveRoutine, createAutoRoutine, updateActiveRoutine,
+    loadRoutineLibrary, activateRoutine, deleteRoutineFromLibrary,
   }
 })

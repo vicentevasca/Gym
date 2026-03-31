@@ -50,6 +50,15 @@ export const usePointsStore = defineStore('points', () => {
 
   function unsubscribe() { unsub?.() }
 
+  function clearState() {
+    unsubscribe()
+    unsub            = null
+    _balance.value   = { balance: 0, total_earned: 0, total_redeemed: 0 }
+    log.value        = []
+    lastEarned.value = 0
+    loading.value    = false
+  }
+
   // ── Inicializar balance si no existe ──────────────────
 
   async function initBalance() {
@@ -211,7 +220,7 @@ export const usePointsStore = defineStore('points', () => {
 
   return {
     balance, totalEarned, log, lastEarned, loading,
-    initBalance, subscribe, unsubscribe,
+    initBalance, subscribe, unsubscribe, clearState,
     earnPoints, earnSet, earnExercise, earnSessionComplete, applyDecay,
     redeemReward, logHabit,
   }

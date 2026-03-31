@@ -96,5 +96,12 @@ export const useVerseStore = defineStore('verse', () => {
       .sort((a, b) => (b.original_date ?? '').localeCompare(a.original_date ?? ''))
   }
 
-  return { verse, library, loading, shown, loadTodayVerse, markShown, saveVerse, loadLibrary }
+  function clearState() {
+    verse.value   = null
+    library.value = []
+    loading.value = false
+    shown.value   = false
+  }
+
+  return { verse, library, loading, shown, loadTodayVerse, markShown, saveVerse, loadLibrary, clearState }
 })
