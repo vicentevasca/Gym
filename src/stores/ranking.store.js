@@ -83,7 +83,7 @@ export const useRankingStore = defineStore('ranking', () => {
   // ── Carga / init ──────────────────────────────────────────────────────────
 
   async function load() {
-    if (!auth.uid) return
+    if (!auth.uid || _loaded) return   // prevent redundant Firestore reads from multiple views
     loading.value = true
     try {
       const ref  = doc(db, 'users', auth.uid, 'ranking', 'data')
@@ -178,7 +178,7 @@ export const useRankingStore = defineStore('ranking', () => {
     const lastTrained = data.value.last_trained
     const yesterday   = (() => {
       const d = new Date(); d.setDate(d.getDate() - 1)
-      return d.toISOString().split('T')[0]
+      return toDateKey(d)
     })()
     const wasConsecutive = lastTrained === yesterday || lastTrained === today
 

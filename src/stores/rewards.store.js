@@ -192,13 +192,14 @@ export const useRewardsStore = defineStore('rewards', () => {
   const activeRewards       = ref([])     // retos en curso
   const completedRewards    = ref([])     // retos completados
   const loading             = ref(false)
+  let _loaded               = false       // evita recargar perfil en cada visita a la vista
 
   const questionnaireCompleted = computed(() => !!questionnaire.value)
 
   // ── Carga del perfil de recompensas ──────────────────────────────────
 
   async function loadRewardsProfile() {
-    if (!auth.uid) return
+    if (!auth.uid || _loaded) return
     loading.value = true
     try {
       const snap = await getDoc(doc(db, 'users', auth.uid, 'rewards', 'profile'))
@@ -208,7 +209,7 @@ export const useRewardsStore = defineStore('rewards', () => {
         personalizedRewards.value = data.personalized_rewards ?? []
       }
       await loadActiveRewards()
-      await loadCompletedRewards()
+      _loaded = true
     } finally {
       loading.value = false
     }
@@ -266,7 +267,7 @@ export const useRewardsStore = defineStore('rewards', () => {
     const startDate = toDateKey()
     const endDate   = new Date()
     endDate.setDate(endDate.getDate() + reward.days)
-    const endDateKey = endDate.toISOString().slice(0, 10)
+    const endDateKey = toDateKey(endDate)
 
     const challenge = {
       reward_id:      rewardId,
@@ -369,6 +370,7 @@ export const useRewardsStore = defineStore('rewards', () => {
     activeRewards.value       = []
     completedRewards.value    = []
     loading.value             = false
+    _loaded                   = false
   }
 
   return {

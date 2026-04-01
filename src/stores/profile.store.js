@@ -21,7 +21,19 @@ export const useProfileStore = defineStore('profile', () => {
     try {
       const ref = doc(db, 'users', auth.uid, 'profile', 'data')
       await updateDoc(ref, { ...data, updated_at: serverTimestamp() })
-      await auth.loadProfile(auth.uid)
+      // Actualizar en memoria sin re-leer Firestore (evita 1 lectura por cada update)
+      if (auth.profile) {
+        const merged = { ...auth.profile }
+        for (const [key, value] of Object.entries(data)) {
+          if (key.includes('.')) {
+            const [parent, child] = key.split('.')
+            merged[parent] = { ...(merged[parent] || {}), [child]: value }
+          } else {
+            merged[key] = value
+          }
+        }
+        auth.profile = merged
+      }
     } finally {
       saving.value = false
     }
@@ -34,6 +46,11 @@ export const useProfileStore = defineStore('profile', () => {
   async function saveThemeColor(themeId) {
     await updateProfile({ theme_color: themeId })
     applyThemeColor(themeId)
+  }
+
+  async function saveMode(mode) {
+    localStorage.setItem('disciplina-mode', mode)
+    await updateProfile({ 'settings.mode': mode })
   }
 
   function applyThemeColor(themeId) {
@@ -64,5 +81,5 @@ export const useProfileStore = defineStore('profile', () => {
     }
   }
 
-  return { saving, nutritionPlan, updateProfile, completeOnboarding, saveThemeColor, initTheme, saveWeight }
+  return { saving, nutritionPlan, updateProfile, completeOnboarding, saveThemeColor, initTheme, saveMode, saveWeight }
 })

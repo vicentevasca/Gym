@@ -19,9 +19,10 @@ const loading   = ref(false)
 const stepEl    = ref(null)
 const progBar   = ref(null)
 
-const TOTAL_STEPS = 4
+const TOTAL_STEPS = 5
 
 const data = ref({
+  alias: auth.user?.displayName || '',
   weight_kg: '',
   height_cm: '',
   dob: '',
@@ -95,6 +96,7 @@ async function finish() {
   loading.value = true
   try {
     await profile.updateProfile({
+      alias: data.value.alias.trim() || auth.user?.displayName || 'Tú',
       biometrics: {
         weight_kg: Number(data.value.weight_kg),
         height_cm: Number(data.value.height_cm),
@@ -156,8 +158,37 @@ const activities = [
     <!-- Contenido del paso -->
     <div class="ob-content" ref="stepEl">
 
-      <!-- Paso 0: Tu cuerpo -->
+      <!-- Paso 0: Tu nombre -->
       <template v-if="step === 0">
+        <div class="ob-step-header">
+          <p class="ob-step-tag label-caps">Bienvenido</p>
+          <h2 class="display-md">¿Cómo quieres que te llame?</h2>
+          <p class="ob-step-sub">Este será tu nombre dentro de la app.</p>
+        </div>
+
+        <div class="ob-fields-stack">
+          <div class="ob-field ob-input-group">
+            <label class="label-caps">Tu nombre</label>
+            <input
+              v-model="data.alias"
+              type="text"
+              inputmode="text"
+              autocomplete="given-name"
+              placeholder="Escribe tu nombre..."
+              class="input-field input-alias"
+              maxlength="30"
+            />
+          </div>
+
+          <div class="ob-alias-warning">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <p>Este nombre <strong>no podrá modificarse</strong> después. Elige bien.</p>
+          </div>
+        </div>
+      </template>
+
+      <!-- Paso 1: Tu cuerpo -->
+      <template v-if="step === 1">
         <div class="ob-step-header">
           <p class="ob-step-tag label-caps">Tu cuerpo</p>
           <h2 class="display-md">Cuéntame sobre ti</h2>
@@ -202,8 +233,8 @@ const activities = [
         </div>
       </template>
 
-      <!-- Paso 1: Tu objetivo -->
-      <template v-if="step === 1">
+      <!-- Paso 2: Tu objetivo -->
+      <template v-if="step === 2">
         <div class="ob-step-header">
           <p class="ob-step-tag label-caps">Tu objetivo</p>
           <h2 class="display-md">¿Qué buscas lograr?</h2>
@@ -251,8 +282,8 @@ const activities = [
         </div>
       </template>
 
-      <!-- Paso 2: Tu gym -->
-      <template v-if="step === 2">
+      <!-- Paso 3: Tu gym -->
+      <template v-if="step === 3">
         <div class="ob-step-header">
           <p class="ob-step-tag label-caps">Tu gym</p>
           <h2 class="display-md">¿Cuántos días entrenas?</h2>
@@ -278,8 +309,8 @@ const activities = [
         </div>
       </template>
 
-      <!-- Paso 3: Lo personal -->
-      <template v-if="step === 3">
+      <!-- Paso 4: Lo personal -->
+      <template v-if="step === 4">
         <div class="ob-step-header">
           <p class="ob-step-tag label-caps">Lo que importa</p>
           <h2 class="display-md">Solo tú y la app lo saben.</h2>
@@ -518,4 +549,27 @@ const activities = [
   border-top: 1px solid var(--border);
   background: var(--bg);
 }
+
+/* Alias step */
+.input-alias {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  text-align: center;
+  letter-spacing: 0.01em;
+}
+.ob-alias-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  background: color-mix(in srgb, var(--warning, #f59e0b) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warning, #f59e0b) 35%, transparent);
+  border-radius: var(--radius);
+  padding: var(--space-3) var(--space-4);
+  color: var(--warning, #f59e0b);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+.ob-alias-warning svg { flex-shrink: 0; margin-top: 2px; }
+.ob-alias-warning p { color: var(--text-2); }
+.ob-alias-warning strong { color: var(--text); }
 </style>

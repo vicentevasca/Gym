@@ -15,10 +15,11 @@ const emit = defineEmits(['close'])
 const ranking   = useRankingStore()
 const { shareWorkout } = useShareCard()
 
-const overlay  = ref(null)
-const card     = ref(null)
-const stars    = ref([])
-const sharing  = ref(false)
+const overlay   = ref(null)
+const card      = ref(null)
+const stars     = ref([])
+const statsGrid = ref(null)
+const sharing   = ref(false)
 
 onMounted(() => {
   gsap.from(overlay.value, { opacity: 0, duration: 0.3 })
@@ -27,7 +28,8 @@ onMounted(() => {
     if (!el) return
     gsap.from(el, { scale: 0, opacity: 0, duration: 0.4, delay: 0.5 + i * 0.07, ease: 'back.out(2)' })
   })
-  staggerIn('.stat-item', { delay: 0.6 })
+  // Usar querySelectorAll dentro del contenedor para no agarrar elementos externos
+  staggerIn(statsGrid.value?.querySelectorAll('.stat-item'), { delay: 0.6 })
   navigator.vibrate?.([80, 40, 80, 40, 120])
 })
 
@@ -71,7 +73,7 @@ function levelProgressWidth() {
       </div>
 
       <!-- Stats grid -->
-      <div class="stats-grid">
+      <div class="stats-grid" ref="statsGrid">
         <div class="stat-item">
           <span class="stat-val">{{ session.exercises?.length ?? 0 }}</span>
           <span class="stat-lbl">Ejercicios</span>
@@ -117,11 +119,11 @@ function levelProgressWidth() {
       <!-- Progression suggestions -->
       <div v-if="suggestions.length" class="sc-suggestions">
         <p class="sc-section-label label-caps">Sugerencias de progresión</p>
-        <div v-for="s in suggestions" :key="s.exerciseId" class="suggestion-row">
+        <div v-for="s in suggestions" :key="s.exercise" class="suggestion-row">
           <div class="sug-dot" />
           <div>
-            <p class="sug-name">{{ s.exerciseName }}</p>
-            <p class="sug-text">{{ s.message }}</p>
+            <p class="sug-name">{{ s.exercise }}</p>
+            <p class="sug-text">{{ s.reason }}</p>
           </div>
         </div>
       </div>

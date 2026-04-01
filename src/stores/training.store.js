@@ -26,6 +26,7 @@ export const useTrainingStore = defineStore('training', () => {
   const routineLibrary      = ref([])   // todas las rutinas guardadas del usuario
   let sessionTimer          = null
   let sessionUnsub          = null
+  let _recordsLoaded        = false     // evita re-fetch de la colección completa de records
 
   // Aliases for views
   const todaySession           = computed(() => session.value)
@@ -146,6 +147,9 @@ export const useTrainingStore = defineStore('training', () => {
     if (!auth.uid) return
     loading.value = true
     try {
+      // Siempre cargar la rutina primero — necesaria para mostrar info aunque la sesión ya exista
+      if (!routine.value) await loadRoutine()
+
       const dateKey  = today()
       const logRef   = doc(db, 'users', auth.uid, 'training_logs', dateKey)
       const snap     = await getDoc(logRef)
@@ -153,9 +157,7 @@ export const useTrainingStore = defineStore('training', () => {
       if (snap.exists()) {
         session.value = snap.data()
       } else {
-        // Solo generar sesión si el usuario tiene una rutina configurada
-        if (!routine.value) await loadRoutine()
-
+        // Sin rutina → session queda null; la UI muestra el empty state
         if (routine.value) {
           const recs      = await loadRecords()
           const generated = getSessionForDate(routine.value, dateKey, recs)
@@ -164,7 +166,6 @@ export const useTrainingStore = defineStore('training', () => {
             session.value = generated
           }
         }
-        // Sin rutina → session queda null; la UI muestra el empty state
       }
 
       // Listener realtime
@@ -181,10 +182,12 @@ export const useTrainingStore = defineStore('training', () => {
 
   async function loadRecords() {
     if (!auth.uid) return {}
+    if (_recordsLoaded && Object.keys(records.value).length > 0) return records.value
     const snap = await getDocs(collection(db, 'users', auth.uid, 'records'))
     const recs = {}
     snap.forEach(d => { recs[d.id] = d.data() })
-    records.value = recs
+    records.value    = recs
+    _recordsLoaded   = true
     return recs
   }
 
@@ -236,9 +239,9 @@ export const useTrainingStore = defineStore('training', () => {
     const exComplete = sets.every(s => s.completed)
     if (exComplete) {
       exercise.completed = true
-      // Verificar PR solo si hay peso real
-      if (weightKg > 0) {
-        const maxSet = sets.reduce((a, b) => b.weight_kg > a.weight_kg ? b : a, sets[0])
+      // Verificar PR solo si hay peso real y al menos un set
+      if (weightKg > 0 && sets.length > 0) {
+        const maxSet = sets.reduce((a, b) => b.weight_kg > a.weight_kg ? b : a)
         await checkAndUpdateRecord(exercise.exercise_id, maxSet.weight_kg, maxSet.reps)
       }
     }
@@ -281,6 +284,8 @@ export const useTrainingStore = defineStore('training', () => {
 
   async function completeSession() {
     if (!auth.uid) return
+    // Guard against double-complete (auto-complete from completeSerie + manual "Finalizar" click)
+    if (session.value?.status === 'completed') return
     stopTimer()
     const logRef = doc(db, 'users', auth.uid, 'training_logs', today())
     const durationMin = Math.floor(elapsedSeconds.value / 60)
@@ -370,6 +375,7 @@ export const useTrainingStore = defineStore('training', () => {
     sessionPointsEarned.value = 0
     routine.value             = null
     routineLibrary.value      = []
+    _recordsLoaded            = false
   }
 
   return {

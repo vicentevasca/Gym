@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 import { useAuthStore }    from '@/stores/auth.store'
 import { useTrainingStore } from '@/stores/training.store'
+import { toDateKey } from '@/utils/formatters'
 
 // ── Bancos de mensajes genereados ──────────────────────────────────────────────
 
@@ -69,8 +70,9 @@ function randomPick(arr) {
   return arr[Math.floor(Math.random() * arr.length)]
 }
 
-function todayKey() {
-  return `notif_shown_${new Date().toISOString().slice(0, 10)}`
+function todayKey(uid) {
+  // UID-scoped so different users on the same device don't share this flag
+  return `notif_shown_${uid || 'anon'}_${toDateKey()}`
 }
 
 function getTimeSlot() {
@@ -80,12 +82,12 @@ function getTimeSlot() {
   return 'evening'
 }
 
-function alreadyShownToday() {
-  return localStorage.getItem(todayKey()) === '1'
+function alreadyShownToday(uid) {
+  return localStorage.getItem(todayKey(uid)) === '1'
 }
 
-function markShownToday() {
-  localStorage.setItem(todayKey(), '1')
+function markShownToday(uid) {
+  localStorage.setItem(todayKey(uid), '1')
 }
 
 // ── Composable ─────────────────────────────────────────────────────────────────
@@ -100,14 +102,17 @@ export function useNotifications() {
     permission.value = result
 
     if (result === 'granted') {
-      // Save preference to Firestore via auth profile
       const auth = useAuthStore()
       if (auth.uid) {
         const { doc, updateDoc } = await import('firebase/firestore')
         const { db } = await import('@/firebase/config')
-        await updateDoc(doc(db, 'users', auth.uid), {
+        await updateDoc(doc(db, 'users', auth.uid, 'profile', 'data'), {
           'settings.notifications_enabled': true,
         }).catch(() => {})
+        // Actualizar en memoria sin releer Firestore
+        if (auth.profile?.settings) {
+          auth.profile = { ...auth.profile, settings: { ...auth.profile.settings, notifications_enabled: true } }
+        }
       }
     }
     return result
@@ -168,7 +173,6 @@ export function useNotifications() {
   async function checkDailyReminder() {
     if (typeof Notification === 'undefined') return
     if (Notification.permission !== 'granted') return
-    if (alreadyShownToday()) return
 
     const auth = useAuthStore()
     if (!auth.isLoggedIn) return
@@ -176,6 +180,8 @@ export function useNotifications() {
     // Check user reminder settings
     const notifEnabled = auth.profile?.settings?.notifications_enabled
     if (!notifEnabled) return
+
+    if (alreadyShownToday(auth.uid)) return
 
     const reminderTime = auth.profile?.settings?.reminder_time || '08:00'
     const [rh, rm] = reminderTime.split(':').map(Number)
@@ -199,7 +205,7 @@ export function useNotifications() {
       session?.exercises?.length ?? 0,
     )
 
-    markShownToday()
+    markShownToday(auth.uid)
     await showOSNotification(title, body, { tag: 'disciplina-daily' })
   }
 
@@ -219,12 +225,17 @@ export function useNotifications() {
     if (!auth.uid) return
     const { doc, updateDoc } = await import('firebase/firestore')
     const { db } = await import('@/firebase/config')
-    await updateDoc(doc(db, 'users', auth.uid), {
+    await updateDoc(doc(db, 'users', auth.uid, 'profile', 'data'), {
       'settings.notifications_enabled': enabled,
-      'settings.reminder_time': reminderTime,
+      'settings.reminder_time':         reminderTime,
     })
-    // Reload profile so the store reflects latest settings
-    if (auth.loadProfile) await auth.loadProfile(auth.uid)
+    // Actualizar en memoria sin releer Firestore
+    if (auth.profile?.settings) {
+      auth.profile = {
+        ...auth.profile,
+        settings: { ...auth.profile.settings, notifications_enabled: enabled, reminder_time: reminderTime },
+      }
+    }
   }
 
   return {

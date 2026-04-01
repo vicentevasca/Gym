@@ -54,10 +54,13 @@ export function pageLeave(container) {
    ───────────────────────────────────────────── */
 
 // Entrada en cascada de elementos
+// Acepta: array de refs, NodeList, o selector CSS string
 export function staggerIn(elements, options = {}) {
-  if (!elements?.length) return
-  // Filter out null/undefined refs
-  const els = Array.from(elements).filter(Boolean)
+  const targets = typeof elements === 'string'
+    ? document.querySelectorAll(elements)
+    : elements
+  if (!targets?.length) return
+  const els = Array.from(targets).filter(Boolean)
   if (!els.length) return
   return gsap.from(els, {
     opacity: 0,

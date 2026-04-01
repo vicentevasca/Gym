@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore'
+import { toDateKey } from '@/utils/formatters'
 import { db }               from '@/firebase/config'
 import { useAuthStore }     from '@/stores/auth.store'
 import { usePointsStore }   from '@/stores/points.store'
@@ -76,7 +77,7 @@ function buildHeatmap() {
   for (let i = 89; i >= 0; i--) {
     const d    = new Date(today)
     d.setDate(today.getDate() - i)
-    const key  = d.toISOString().slice(0, 10)
+    const key  = toDateKey(d)
     days.push({ key, trained: trainedDates.has(key), isToday: i === 0 })
   }
   heatmapDays.value = days

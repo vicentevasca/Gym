@@ -2,7 +2,6 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTrainingStore } from '@/stores/training.store'
-import { usePointsStore }   from '@/stores/points.store'
 import { staggerIn }        from '@/composables/useAnimations'
 import AppHeader            from '@/components/ui/AppHeader.vue'
 import BottomNav            from '@/components/ui/BottomNav.vue'
@@ -15,7 +14,6 @@ import RoutineDetailSheet   from '@/components/training/RoutineDetailSheet.vue'
 
 const router   = useRouter()
 const training = useTrainingStore()
-const points   = usePointsStore()
 
 const resting            = ref(false)
 const restSeconds        = ref(90)
@@ -48,11 +46,10 @@ function onTimerClose() {
 }
 
 onMounted(async () => {
-  await training.loadRoutine()
-  await training.loadTodaySession()
+  await training.loadTodaySession()   // calls loadRoutine() internally if needed
   const cards = document.querySelectorAll('.exercise-card')
   if (cards.length) staggerIn(cards, { delay: 0.2 })
-  points.subscribe()
+  // points.subscribe() removed — App.vue handles it via initBalance() on auth.uid change
 })
 
 const session     = computed(() => training.todaySession)
@@ -93,7 +90,9 @@ function onSerieComplete(exerciseIndex) {
 }
 
 async function finishSession() {
-  await training.completeSession()
+  // completeSession() has its own guard against double-runs;
+  // always show the modal regardless of whether it was auto-completed
+  if (!training.isComplete) await training.completeSession()
   showComplete.value = true
 }
 

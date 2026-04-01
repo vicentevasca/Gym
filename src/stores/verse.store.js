@@ -41,7 +41,7 @@ export const useVerseStore = defineStore('verse', () => {
 
       if (snap.exists()) {
         verse.value = snap.data()
-        shown.value = localStorage.getItem(`verse-shown-${dateKey}`) === '1'
+        shown.value = localStorage.getItem(`verse-shown-${auth.uid}-${dateKey}`) === '1'
       } else {
         // Fallback local hasta que Cloud Functions esté activo
         const fallback = FALLBACK_VERSES[new Date().getDay() % FALLBACK_VERSES.length]
@@ -63,7 +63,7 @@ export const useVerseStore = defineStore('verse', () => {
 
   function markShown() {
     shown.value = true
-    localStorage.setItem(`verse-shown-${toDateKey()}`, '1')
+    localStorage.setItem(`verse-shown-${auth.uid}-${toDateKey()}`, '1')
   }
 
   async function saveVerse() {
@@ -90,10 +90,9 @@ export const useVerseStore = defineStore('verse', () => {
 
   async function loadLibrary() {
     if (!auth.uid) return
-    const q    = query(collection(db, 'users', auth.uid, 'verse_library'))
+    const q    = query(collection(db, 'users', auth.uid, 'verse_library'), orderBy('original_date', 'desc'))
     const snap = await getDocs(q)
     library.value = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-      .sort((a, b) => (b.original_date ?? '').localeCompare(a.original_date ?? ''))
   }
 
   function clearState() {

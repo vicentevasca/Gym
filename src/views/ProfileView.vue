@@ -144,8 +144,20 @@ async function handleLogout() {
         </div>
       </div>
 
-      <!-- ── Peso corporal ───────────────────────────────────── -->
+      <!-- ── Nombre de usuario ──────────────────────────────── -->
       <div :ref="el => rows[2] = el" class="card section-card">
+        <p class="section-title label-caps">Nombre</p>
+        <div class="alias-row">
+          <div class="alias-value">{{ auth.alias }}</div>
+          <div class="alias-lock" title="El nombre no puede cambiarse">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            Permanente
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Peso corporal ───────────────────────────────────── -->
+      <div :ref="el => rows[3] = el" class="card section-card">
         <p class="section-title label-caps">Peso corporal</p>
         <div class="weight-row">
           <div class="weight-input-wrap input-with-icon">
@@ -180,7 +192,7 @@ async function handleLogout() {
       </div>
 
       <!-- ── Tema de color ───────────────────────────────────── -->
-      <div :ref="el => rows[3] = el" class="card section-card">
+      <div :ref="el => rows[4] = el" class="card section-card">
         <p class="section-title label-caps">Tema de color</p>
         <div class="themes-row">
           <button
@@ -196,7 +208,7 @@ async function handleLogout() {
       </div>
 
       <!-- ── Notificaciones ─────────────────────────────────── -->
-      <div :ref="el => rows[4] = el" class="card section-card">
+      <div :ref="el => rows[5] = el" class="card section-card">
         <p class="section-title label-caps">Recordatorios</p>
 
         <!-- Permission banner -->
@@ -253,7 +265,7 @@ async function handleLogout() {
       </div>
 
       <!-- ── Coming soon ─────────────────────────────────────── -->
-      <div :ref="el => rows[5] = el" class="card section-card coming-card">
+      <div :ref="el => rows[6] = el" class="card section-card coming-card">
         <div class="coming-icon-sm">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 00-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0020 4.77 5.07 5.07 0 0019.91 1S18.73.65 16 2.48a13.38 13.38 0 00-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 005 4.77a5.44 5.44 0 00-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 009 18.13V22"/></svg>
         </div>
@@ -264,7 +276,7 @@ async function handleLogout() {
       </div>
 
       <!-- ── Logout ──────────────────────────────────────────── -->
-      <div :ref="el => rows[6] = el" class="logout-section">
+      <div :ref="el => rows[7] = el" class="logout-section">
         <button class="btn btn-danger btn-full" @click="confirmLogout">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
           Cerrar sesión
@@ -332,6 +344,20 @@ async function handleLogout() {
 /* ── Sections ───────────────────────────────────────────── */
 .section-card { margin-bottom: var(--space-3); }
 .section-title { margin-bottom: var(--space-4); }
+
+/* ── Nombre ─────────────────────────────────────────────── */
+.alias-row {
+  display: flex; align-items: center; justify-content: space-between;
+}
+.alias-value {
+  font-size: var(--text-base); font-weight: 600; color: var(--text);
+}
+.alias-lock {
+  display: flex; align-items: center; gap: var(--space-1);
+  font-size: var(--text-xs); color: var(--muted);
+  background: var(--faint); border: 1px solid var(--border);
+  border-radius: var(--radius-full); padding: 3px 8px;
+}
 
 /* ── Peso ───────────────────────────────────────────────── */
 .weight-row { display: flex; gap: var(--space-3); align-items: center; }

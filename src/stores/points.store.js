@@ -33,6 +33,7 @@ export const usePointsStore = defineStore('points', () => {
   const lastEarned  = ref(0)
   const loading     = ref(false)
   let unsub         = null
+  let _logLoaded    = false   // evita re-fetch del historial en cada subscribe
 
   const balance      = computed(() => _balance.value.balance ?? 0)
   const totalEarned  = computed(() => _balance.value.total_earned ?? 0)
@@ -40,12 +41,12 @@ export const usePointsStore = defineStore('points', () => {
   // ── Suscripción realtime ───────────────────────────────
 
   function subscribe() {
-    if (!auth.uid) return
+    if (!auth.uid || unsub) return   // idempotent — no duplicate listeners
     const ref = doc(db, 'users', auth.uid, 'points', 'balance')
     unsub = onSnapshot(ref, (snap) => {
       if (snap.exists()) _balance.value = snap.data()
     })
-    loadLog()
+    if (!_logLoaded) loadLog()
   }
 
   function unsubscribe() { unsub?.() }
@@ -53,6 +54,7 @@ export const usePointsStore = defineStore('points', () => {
   function clearState() {
     unsubscribe()
     unsub            = null
+    _logLoaded       = false
     _balance.value   = { balance: 0, total_earned: 0, total_redeemed: 0 }
     log.value        = []
     lastEarned.value = 0
@@ -76,6 +78,7 @@ export const usePointsStore = defineStore('points', () => {
     const q    = query(collection(db, 'users', auth.uid, 'points_history'), orderBy('timestamp', 'desc'), limit(20))
     const snap = await getDocs(q)
     log.value  = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+    _logLoaded = true
   }
 
   // ── Ganar puntos ───────────────────────────────────────

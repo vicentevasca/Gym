@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { doc, getDoc, setDoc, updateDoc, getDocs, collection, serverTimestamp } from 'firebase/firestore'
+import { doc, getDoc, setDoc, updateDoc, getDocs, addDoc, deleteDoc, collection, serverTimestamp, query, where, documentId, orderBy, increment } from 'firebase/firestore'
 import { db } from '@/firebase/config'
 import { useAuthStore } from './auth.store'
 import { calcNutritionPlan } from '@/utils/tdee'
@@ -11,11 +11,15 @@ import { useToast } from '@/composables/useToast'
 export const useNutritionStore = defineStore('nutrition', () => {
   const auth = useAuthStore()
 
-  const dayLog   = ref(null)
-  const plan     = ref(null)
-  const loading  = ref(false)
-  const dietPlan = ref(null)
-  const history  = ref([])
+  const dayLog      = ref(null)
+  const plan        = ref(null)
+  const loading     = ref(false)
+  const dietPlan    = ref(null)
+  const history     = ref([])
+  const customFoods = ref([])
+  let _dayKey             = null
+  let _dietLoaded         = false
+  let _customFoodsLoaded  = false
 
   const consumed = computed(() => {
     if (!dayLog.value) return { kcal: 0, protein: 0, carbs: 0, fat: 0 }
@@ -50,17 +54,20 @@ export const useNutritionStore = defineStore('nutrition', () => {
 
   async function loadDayLog() {
     if (!auth.uid) return
+    const dateKey = toDateKey()
+    // Ya cargado hoy — no releer Firestore al cambiar de tab
+    if (_dayKey === dateKey && dayLog.value) return
     loading.value = true
     try {
       // Calcular plan nutricional desde el perfil
       plan.value = calcNutritionPlan(auth.profile || {})
 
-      const dateKey = toDateKey()
       const logRef  = doc(db, 'users', auth.uid, 'nutrition_logs', dateKey)
       const snap    = await getDoc(logRef)
 
       if (snap.exists()) {
         dayLog.value = snap.data()
+        _dayKey = dateKey
       } else {
         const initial = {
           date:        dateKey,
@@ -76,10 +83,11 @@ export const useNutritionStore = defineStore('nutrition', () => {
         }
         await setDoc(logRef, initial)
         dayLog.value = initial
+        _dayKey = dateKey
       }
 
-      // Cargar plan de dieta e historial en paralelo
-      await Promise.all([loadDietPlan(), loadHistory()])
+      // Cargar plan de dieta, historial y alimentos personalizados en paralelo
+      await Promise.all([loadDietPlan(), loadHistory(), loadCustomFoods()])
     } finally {
       loading.value = false
     }
@@ -150,13 +158,12 @@ export const useNutritionStore = defineStore('nutrition', () => {
   }
 
   async function loadDietPlan() {
-    if (!auth.uid) return
+    if (!auth.uid || _dietLoaded) return
     try {
       const planRef = doc(db, 'users', auth.uid, 'nutrition_logs', 'diet_profile')
       const snap    = await getDoc(planRef)
-      if (snap.exists()) {
-        dietPlan.value = snap.data()
-      }
+      if (snap.exists()) dietPlan.value = snap.data()
+      _dietLoaded = true
     } catch (e) {
       console.warn('[nutrition] No se pudo cargar el plan de dieta:', e)
     }
@@ -167,30 +174,34 @@ export const useNutritionStore = defineStore('nutrition', () => {
   async function loadHistory() {
     if (!auth.uid) return
     try {
-      const today     = new Date()
-      const days      = []
+      const today      = new Date()
       const targetKcal = plan.value?.targetKcal ?? 2000
+      const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
 
-      // Generar los últimos 7 días (incluyendo hoy)
+      // Construir array de los últimos 7 días
+      const days = []
       for (let i = 6; i >= 0; i--) {
         const d = new Date(today)
         d.setDate(today.getDate() - i)
-        const year  = d.getFullYear()
-        const month = String(d.getMonth() + 1).padStart(2, '0')
-        const day   = String(d.getDate()).padStart(2, '0')
-        days.push(`${year}-${month}-${day}`)
+        days.push(fmt(d))
       }
+      const startKey = days[0]
+      const endKey   = days[days.length - 1]
 
-      const snapshots = await Promise.all(
-        days.map(dateKey => getDoc(doc(db, 'users', auth.uid, 'nutrition_logs', dateKey)))
+      // Una sola query de rango en vez de 7 lecturas individuales
+      const snap = await getDocs(
+        query(
+          collection(db, 'users', auth.uid, 'nutrition_logs'),
+          where(documentId(), '>=', startKey),
+          where(documentId(), '<=', endKey)
+        )
       )
+      const docsMap = {}
+      snap.docs.forEach(d => { docsMap[d.id] = d.data() })
 
-      history.value = days.map((dateKey, idx) => {
-        const snap = snapshots[idx]
-        if (!snap.exists()) {
-          return { date: dateKey, kcal: 0, target_kcal: targetKcal, protein: 0, carbs: 0, fat: 0, meals: [], empty: true }
-        }
-        const data  = snap.data()
+      history.value = days.map(dateKey => {
+        const data = docsMap[dateKey]
+        if (!data) return { date: dateKey, kcal: 0, target_kcal: targetKcal, protein: 0, carbs: 0, fat: 0, meals: [], empty: true }
         const meals = data.meals || []
         let kcal = 0, protein = 0, carbs = 0, fat = 0
         meals.forEach(meal => {
@@ -225,7 +236,7 @@ export const useNutritionStore = defineStore('nutrition', () => {
     try {
       const yesterday = new Date()
       yesterday.setDate(yesterday.getDate() - 1)
-      const yKey   = yesterday.toISOString().slice(0, 10)
+      const yKey   = toDateKey(yesterday)
       const yRef   = doc(db, 'users', auth.uid, 'nutrition_logs', yKey)
       const ySnap  = await getDoc(yRef)
       if (!ySnap.exists()) return false
@@ -257,19 +268,98 @@ export const useNutritionStore = defineStore('nutrition', () => {
     }
   }
 
+  // ── Alimentos personalizados (biblioteca) ─────────────
+
+  async function loadCustomFoods() {
+    if (!auth.uid || _customFoodsLoaded) return
+    try {
+      const snap = await getDocs(
+        query(
+          collection(db, 'users', auth.uid, 'custom_foods'),
+          orderBy('usage_count', 'desc'),
+        )
+      )
+      customFoods.value = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      _customFoodsLoaded = true
+    } catch (e) {
+      console.warn('[nutrition] No se pudo cargar alimentos personalizados:', e)
+    }
+  }
+
+  async function saveCustomFood(food) {
+    if (!auth.uid) return null
+    const data = {
+      name:          food.name,
+      kcal:          Math.round(food.kcal    ?? 0),
+      protein:       Math.round((food.protein ?? 0) * 10) / 10,
+      carbs:         Math.round((food.carbs   ?? 0) * 10) / 10,
+      fat:           Math.round((food.fat     ?? 0) * 10) / 10,
+      serving_grams: food.serving_grams ?? null,
+      serving_label: food.serving_label ?? null,
+      source:        food.source ?? 'manual',
+      usage_count:   food.usage_count ?? 0,
+      updated_at:    serverTimestamp(),
+    }
+    if (food.id) {
+      const ref = doc(db, 'users', auth.uid, 'custom_foods', food.id)
+      await setDoc(ref, { ...data, created_at: food.created_at ?? serverTimestamp() }, { merge: true })
+      const idx = customFoods.value.findIndex(f => f.id === food.id)
+      const updated = { ...food, ...data }
+      if (idx >= 0) customFoods.value[idx] = updated
+      else customFoods.value.unshift(updated)
+      return { id: food.id, ...updated }
+    } else {
+      const ref = await addDoc(collection(db, 'users', auth.uid, 'custom_foods'), {
+        ...data,
+        created_at: serverTimestamp(),
+      })
+      const newFood = { id: ref.id, ...data }
+      customFoods.value.unshift(newFood)
+      return newFood
+    }
+  }
+
+  async function deleteCustomFood(foodId) {
+    if (!auth.uid) return
+    await deleteDoc(doc(db, 'users', auth.uid, 'custom_foods', foodId))
+    customFoods.value = customFoods.value.filter(f => f.id !== foodId)
+  }
+
+  async function incrementCustomFoodUsage(foodId) {
+    if (!auth.uid || !foodId) return
+    if (!customFoods.value.find(f => f.id === foodId)) return
+    try {
+      await updateDoc(doc(db, 'users', auth.uid, 'custom_foods', foodId), {
+        usage_count: increment(1),
+      })
+      const idx = customFoods.value.findIndex(f => f.id === foodId)
+      if (idx >= 0) {
+        customFoods.value[idx] = {
+          ...customFoods.value[idx],
+          usage_count: (customFoods.value[idx].usage_count || 0) + 1,
+        }
+      }
+    } catch { /* ignore */ }
+  }
+
   function clearState() {
     dayLog.value   = null
     plan.value     = null
     loading.value  = false
     dietPlan.value = null
     history.value  = []
+    _dayKey             = null
+    _dietLoaded         = false
+    customFoods.value   = []
+    _customFoodsLoaded  = false
   }
 
   return {
     dayLog, plan, targets, loading, consumed, percentages,
-    dietPlan, history,
+    dietPlan, history, customFoods,
     loadDayLog, addFood, removeFood, logWater,
     saveDietPlan, loadDietPlan, loadHistory, copyFromYesterday,
+    loadCustomFoods, saveCustomFood, deleteCustomFood, incrementCustomFoodUsage,
     clearState,
   }
 })

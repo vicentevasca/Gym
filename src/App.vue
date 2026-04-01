@@ -22,7 +22,7 @@ const mood      = useMoodStore()
 const nutrition = useNutritionStore()
 const verse     = useVerseStore()
 const rewards   = useRewardsStore()
-const { mode }  = useTheme()
+const { mode, applyFromProfile } = useTheme()
 const notif     = useNotifications()
 
 onMounted(() => {
@@ -49,6 +49,9 @@ watch(() => auth.uid, async (newUid, oldUid) => {
     // Nuevo usuario autenticado — cargar sus datos base
     await ranking.load()
     await points.initBalance()
+    // Aplicar el modo oscuro/claro guardado en el perfil del usuario
+    const savedMode = auth.profile?.settings?.mode
+    if (savedMode) applyFromProfile(savedMode)
     setTimeout(() => notif.checkDailyReminder(), 3000)
   }
 })

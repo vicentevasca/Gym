@@ -13,9 +13,12 @@ export function formatDuration(minutes) {
   return m > 0 ? `${h}h ${m}m` : `${h}h`
 }
 
-/** Retorna fecha en formato YYYY-MM-DD */
+/** Retorna fecha en formato YYYY-MM-DD usando hora local (no UTC) */
 export function toDateKey(date = new Date()) {
-  return date.toISOString().split('T')[0]
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
 }
 
 /** Formatea fecha para mostrar: "Lunes 22 marzo" */
@@ -51,7 +54,6 @@ export function getDayName(date = new Date()) {
 
 /** Nombre corto del día (Lun, Mar, Mié...) */
 export function getDayShort(date = new Date()) {
-  return date.toLocaleDateString('es-CL', { weekday: 'short' })
-    .replace('.', '')
-    .charAt(0).toUpperCase() + date.toLocaleDateString('es-CL', { weekday: 'short' }).slice(1, 3)
+  const full = date.toLocaleDateString('es-CL', { weekday: 'short' }).replace(/\./g, '')
+  return full.charAt(0).toUpperCase() + full.slice(1)
 }

@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { FALLBACK_QUOTES, dayOfYear } from '@/utils/homeContent'
+import { toDateKey } from '@/utils/formatters'
 
 const CACHE_KEY = 'disciplina_daily_quote'
 
@@ -60,7 +61,7 @@ function readCache() {
     const raw = localStorage.getItem(CACHE_KEY)
     if (!raw) return null
     const parsed = JSON.parse(raw)
-    const today  = new Date().toISOString().split('T')[0]
+    const today  = toDateKey()
     if (parsed.date === today && parsed.quote?.text) {
       return parsed.quote
     }
@@ -72,7 +73,7 @@ function readCache() {
 
 function writeCache(q) {
   try {
-    const today = new Date().toISOString().split('T')[0]
+    const today = toDateKey()
     localStorage.setItem(CACHE_KEY, JSON.stringify({ date: today, quote: q }))
   } catch {
     // ignorar errores de storage

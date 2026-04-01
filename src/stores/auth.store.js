@@ -77,9 +77,10 @@ export const useAuthStore = defineStore('auth', () => {
     await logout()        // Firebase elimina el token de localStorage
     user.value    = null
     profile.value = null
-    // Resetear la promesa para que un nuevo login pueda reinicializar el listener
-    _initPromise  = null
     loading.value = true
+    // NOTE: _initPromise is intentionally NOT reset here.
+    // The onAuthChange listener registered in init() handles all auth state transitions,
+    // including logout → re-login. Resetting it would register a duplicate listener.
   }
 
   async function forgotPassword(email) {

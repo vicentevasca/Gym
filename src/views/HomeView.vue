@@ -114,8 +114,7 @@ function onMoodChecked(level) {
 const session  = computed(() => training.todaySession)
 const consumed = computed(() => nutrition.consumed)
 const kcalPct  = computed(() => {
-  const target = auth.profile?.nutrition_plan?.kcal ?? 2000
-  return Math.min(Math.round((consumed.value.kcal / target) * 100), 100)
+  return Math.min(Math.round((consumed.value.kcal / nutrition.targets.kcal) * 100), 100)
 })
 const waterPct = computed(() => Math.min(Math.round(((nutrition.dayLog?.water_ml ?? 0) / 2500) * 100), 100))
 
